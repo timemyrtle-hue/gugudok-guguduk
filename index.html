@@ -698,7 +698,10 @@
     // on a duo picture, the twin closest to the tap answers
     const key = !isDuo(s) ? s.key
       : Math.abs(anchorOf('dok').cx - e.clientX) < Math.abs(anchorOf('duk').cx - e.clientX) ? 'dok' : 'duk';
-    say(key, reply('poke', key, 'chat'));
+    // each picture has its own reactions (replies.js POSE_POKES); duo pictures have one set per twin
+    const own = (window.POSE_POKES || {})[s.pose.id];
+    const lines = own && (Array.isArray(own) ? own : own[key]);
+    say(key, lines && lines.length ? pickFresh(lines) : reply('poke', key, 'chat'));
   });
 
   // ---------- animation loop ----------
