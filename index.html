@@ -199,6 +199,11 @@
   const POSES = {
     dok: ['dok-wave', 'dok-music', 'dok-hearteyes', 'dok-read', 'dok-shush', 'dok-books', 'dok-wink', 'dok-hearts'].map(id => ({ id })),
     duk: ['duk-music', 'duk-search', 'duk-wave', 'duk-read', 'duk-shush', 'duk-books', 'duk-think'].map(id => ({ id })),
+    // concept art with both twins in one picture; `at` = where each stands, as a share of the original width
+    duo: [
+      { id: 'duo-stand', at: { dok: 0.29, duk: 0.70 } },
+      { id: 'duo-cart', at: { dok: 0.39, duk: 0.68 } },
+    ],
   };
   // filled with trimmed canvases once the pictures have loaded (see the bottom of the script)
   const IMGS = {};
@@ -220,6 +225,8 @@
         if (j < y0) y0 = j; if (j > y1) y1 = j;
       }
     }
+    // ox/ow remember the crop so positions in the original art can be found again
+    c.ox = 0; c.ow = c.width;
     if (x1 <= x0 || y1 <= y0) return c;
     const pad = 4;
     x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
@@ -227,12 +234,27 @@
     const out = document.createElement('canvas');
     out.width = x1 - x0; out.height = y1 - y0;
     out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    out.ox = x0; out.ow = c.width;
     return out;
   }
   const lastPose = {};
   function randomPose(key) {
     const list = POSES[key].filter(p => p !== lastPose[key]);
     return (lastPose[key] = pick(list));
+  }
+  // a shown item is one twin ('dok' / 'duk') or a 'duo' picture holding both
+  const isDuo = s => s.key === 'duo';
+  const isOut = key => shown.some(s => s.key === key || (isDuo(s) && key in s.pose.at));
+  // where a twin's speech bubble should point, and which picture holds the twin
+  function anchorOf(key) {
+    for (const s of shown) {
+      if (s.key === key) return { s, cx: s.dx + s.w / 2 };
+      if (isDuo(s) && key in s.pose.at) {
+        const px = s.pose.at[key] * (s.img.ow || s.img.width) - (s.img.ox || 0);
+        return { s, cx: s.dx + px / s.img.width * s.w };
+      }
+    }
+    return null;
   }
 
   // ---------- background: bookshelves + light beam ----------
@@ -378,7 +400,7 @@
     const narrow = isNarrow();
     const top0 = Math.min(240, H * 0.32);
     const bottom = H - (narrow ? 150 : 120);
-    const slotW = items.length === 1 ? (narrow ? W * 0.78 : W) : (narrow ? W / 2 - 14 : W);
+    const slotW = items.length === 1 ? (narrow ? (isDuo(items[0]) ? W - 24 : W * 0.78) : W) : (narrow ? W / 2 - 14 : W);
     const out = [];
     items.forEach(({ key, pose }, i) => {
       const img = IMGS[pose.id];
@@ -400,21 +422,26 @@
     const two = items.length === 2;
     return items.map(({ key, pose }, i) => {
       const img = IMGS[pose.id];
-      const h = Math.max(100, Math.min(440, bottom - top0, (two ? W * 0.24 : W * 0.4) * img.height / img.width));
+      const duo = key === 'duo';
+      const h = Math.max(100, Math.min(440, bottom - top0, (two ? W * 0.24 : duo ? W * 0.45 : W * 0.4) * img.height / img.width));
       const w = h * img.width / img.height;
-      const cx = two ? (i === 0 ? 16 + w / 2 : W - 16 - w / 2) : W * 0.3;
+      // a duo picture stands in the middle with a bubble on each side
+      const cx = two ? (i === 0 ? 16 + w / 2 : W - 16 - w / 2) : duo ? W / 2 : W * 0.3;
       return { key, pose, img, x: cx - w / 2, dx: cx - w / 2, y: bottom - h, w, h, alpha: 0, bob: Math.random() * 6 };
     });
   }
 
   function summon(keys, topic) {
-    if (state === 'gather') return;
+    if (state === 'gather' || keys.every(isOut)) return;
     hint.classList.add('gone');
     // characters already out stay as they are; only newcomers form out of dust
     const old = shown;
-    const items = ['dok', 'duk']
-      .filter(k => keys.includes(k) || old.some(s => s.key === k))
-      .map(key => old.find(s => s.key === key) || { key, pose: randomPose(key) });
+    // when both appear together, sometimes they form one piece of duo concept art
+    const items = !old.length && keys.length === 2 && Math.random() < 0.4
+      ? [{ key: 'duo', pose: randomPose('duo') }]
+      : ['dok', 'duk']
+        .filter(k => keys.includes(k) || old.some(s => s.key === k))
+        .map(key => old.find(s => s.key === key) || { key, pose: randomPose(key) });
     shown = layoutFor(items).map(s => {
       const prev = old.find(o => o.key === s.key);
       if (prev) return Object.assign(s, { alpha: 1, bob: prev.bob, dx: prev.dx });
@@ -425,7 +452,8 @@
     if (!fresh.length) return;
     // a found pose introduces itself with its own line
     // a twin who was already out answers right away; the newcomer speaks once formed
-    const line = fresh.map(s => [s.key, reply(topic, s.key, old.length ? 'join' : 'first')]);
+    const line = fresh.flatMap(s => (isDuo(s) ? ['dok', 'duk'] : [s.key])
+      .map(k => [k, reply(topic, k, old.length ? 'join' : 'first')]));
     old.forEach(s => say(s.key, reply(topic, s.key, 'chat')));
     let targets = [];
     for (const s of fresh) targets = targets.concat(sampleTargets(s.img, s.x, s.y, s.w, s.h, 2600 / fresh.length + 600));
@@ -477,19 +505,18 @@
   // ---------- speech bubbles ----------
   let bubbles = [];
   function say(key, text) {
-    const s = shown.find(c => c.key === key) || shown[0];
-    if (!s) return;
-    let b = bubbles.find(x => x.key === s.key);
+    if (!anchorOf(key)) return;
+    let b = bubbles.find(x => x.key === key);
     if (!b) {
       const el = document.createElement('div');
       el.className = 'bubble';
       document.body.appendChild(el);
-      b = { key: s.key, el };
+      b = { key, el };
       bubbles.push(b);
     }
     b.el.innerHTML = '';
     const who = document.createElement('span');
-    who.className = 'who'; who.style.color = CHARS[s.key].color; who.textContent = CHARS[s.key].name;
+    who.className = 'who'; who.style.color = CHARS[key].color; who.textContent = CHARS[key].name;
     b.el.append(who, document.createTextNode(text));
     positionBubbles();
     b.el.classList.remove('show');
@@ -498,37 +525,54 @@
   }
   function positionBubbles() {
     const short = isShort();
+    const two = isOut('dok') && isOut('duk');
     // two bubbles share the width; one bubble may use most of it
-    const maxW = shown.length === 2 ? Math.min(400, W / 2 - (isNarrow() ? 12 : 24)) : Math.min(400, W - 32);
+    const maxW = two ? Math.min(400, W / 2 - (isNarrow() ? 12 : 24)) : Math.min(400, W - 32);
+    shown.forEach(s => { s.fitNext = 1; });
     for (const b of bubbles) {
-      const s = shown.find(c => c.key === b.key);
-      if (!s) continue;
-      const right = short && shown.length === 2 && s.x + s.w / 2 > W / 2;
+      const a = anchorOf(b.key);
+      if (!a) continue;
+      const s = a.s;
       b.el.classList.toggle('side', short);
-      b.el.classList.toggle('right', right);
       if (short) {
-        // beside the character, pointing toward the middle of the screen
-        // with two twins each bubble stops at the middle of the screen
-        const room = shown.length === 1 ? W - (s.dx + s.w) - 26
-          : right ? s.dx - 10 - (W / 2 + 6)
-          : W / 2 - 6 - (s.dx + s.w + 10);
+        // beside the character, pointing toward the middle of the screen;
+        // for a duo picture the bubbles go out to either side of it
+        let right, room;
+        if (isDuo(s)) {
+          right = a.cx < s.dx + s.w / 2;
+          room = right ? s.dx - 20 : W - (s.dx + s.w) - 20;
+        } else {
+          right = two && a.cx > W / 2;
+          room = !two ? W - (s.dx + s.w) - 26
+            : right ? s.dx - 10 - (W / 2 + 6)
+            : W / 2 - 6 - (s.dx + s.w + 10);
+        }
+        b.el.classList.toggle('right', right);
         b.el.style.maxWidth = Math.min(400, room) + 'px';
         b.el.style.left = (right ? s.dx - 10 : s.dx + s.w + 10) + 'px';
         b.el.style.top = Math.max(8, s.y + bobOffset(s) + 4) + 'px';
-        s.fit = 1;
         continue;
       }
+      b.el.classList.remove('right');
       b.el.style.maxWidth = maxW + 'px';
-      // keep the bubble inside the screen edges
+      // with both twins out, each bubble keeps to its own half so they never overlap
       const half = b.el.offsetWidth / 2;
-      b.el.style.left = Math.min(Math.max(s.dx + s.w / 2, half + 8), W - half - 8) + 'px';
+      let cx = a.cx;
+      if (two) {
+        const other = anchorOf(b.key === 'dok' ? 'duk' : 'dok');
+        const leftSide = a.cx < other.cx || (a.cx === other.cx && b.key === 'dok');
+        cx = leftSide ? Math.min(cx, W / 2 - half - 6) : Math.max(cx, W / 2 + half + 6);
+      }
+      // and inside the screen edges
+      b.el.style.left = Math.min(Math.max(cx, half + 8), W - half - 8) + 'px';
       // long replies grow upward; never let them cover the title
       const minTop = (title.classList.contains('show') && !keyboardOpen() ? title.getBoundingClientRect().bottom : 0) + 8;
       const bubbleBottom = Math.max(s.y + bobOffset(s) - 6, minTop + b.el.offsetHeight);
       b.el.style.top = bubbleBottom + 'px';
-      // if the bubble reaches down past the twin's head, shrink the twin to stay below it
-      s.fit = Math.max(0.5, Math.min(1, (s.y + s.h - (bubbleBottom + 18)) / s.h));
+      // if the bubble reaches down past the picture's top, shrink the picture to stay below it
+      s.fitNext = Math.min(s.fitNext, Math.max(0.5, Math.min(1, (s.y + s.h - (bubbleBottom + 18)) / s.h)));
     }
+    shown.forEach(s => { s.fit = s.fitNext; });
   }
 
   // ---------- understanding what you said ----------
@@ -582,13 +626,29 @@
     }
     if (state !== 'shown') return;
     // talking to one twin again brings the other out of the dust
-    if (shown.length === 1) {
+    if (!isOut('dok') || !isOut('duk')) {
       summon(['dok', 'duk'], topic);
       return;
     }
     const named = /구구독|구독|구구덕|구덕|쌍둥이|둘\s*다|모두/.test(text);
-    const keys = named ? whoFor(text) : shown.map(s => s.key);
-    keys.forEach((k, i) => setTimeout(() => { changePose(k); say(k, reply(topic, k, 'chat')); }, i * 1400));
+    const keys = named ? whoFor(text) : ['dok', 'duk'];
+    repose(keys);
+    keys.forEach((k, i) => setTimeout(() => say(k, reply(topic, k, 'chat')), i * 1400));
+  }
+
+  // with both twins out, each new message changes the picture: sometimes the duo
+  // concept art, otherwise each speaker hops into a new pose of their own
+  function repose(keys) {
+    const duoNow = shown.length === 1 && isDuo(shown[0]);
+    const r = Math.random();
+    if (duoNow && r < 0.35) return showTogether([{ key: 'duo', pose: randomPose('duo') }]);
+    if (duoNow) return showTogether([{ key: 'dok', pose: randomPose('dok') }, { key: 'duk', pose: randomPose('duk') }]);
+    if (r < 0.25) return showTogether([{ key: 'duo', pose: randomPose('duo') }]);
+    keys.forEach(changePose);
+  }
+  function showTogether(items) {
+    shown = layoutFor(items).map(s => Object.assign(s, { alpha: 1, pop: 1 }));
+    burst(shown, 24);
   }
 
   // a revealed twin hops into a new pose (no dust, just a little pop)
@@ -634,7 +694,11 @@
   stage.addEventListener('click', e => {
     if (state !== 'shown') return;
     const s = shown.find(s => e.clientX > s.dx && e.clientX < s.dx + s.w && e.clientY > s.y && e.clientY < s.y + s.h);
-    if (s) say(s.key, reply('poke', s.key, 'chat'));
+    if (!s) return;
+    // on a duo picture, the twin closest to the tap answers
+    const key = !isDuo(s) ? s.key
+      : Math.abs(anchorOf('dok').cx - e.clientX) < Math.abs(anchorOf('duk').cx - e.clientX) ? 'dok' : 'duk';
+    say(key, reply('poke', key, 'chat'));
   });
 
   // ---------- animation loop ----------
