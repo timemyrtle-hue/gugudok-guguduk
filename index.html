@@ -64,9 +64,9 @@
   @keyframes breathe { 50% { opacity: .45; } }
 
   .bubble {
-    position: fixed; z-index: 4; max-width: min(360px, 80vw);
+    position: fixed; z-index: 4; width: max-content; max-width: min(400px, 38vw);
     background: #fff; color: #3b2a55; border-radius: 22px;
-    padding: 14px 18px; font-size: clamp(16px, 1.8vw, 21px); line-height: 1.4;
+    padding: 12px 18px; font-size: clamp(15px, 1.5vw, 19px); line-height: 1.4; word-break: keep-all;
     box-shadow: 0 10px 30px rgba(0,0,0,.35);
     transform: translate(-50%, -100%) scale(.6); opacity: 0;
     transition: opacity .25s, transform .35s cubic-bezier(.3,1.6,.5,1);
@@ -438,7 +438,9 @@
       const s = shown.find(c => c.key === b.key);
       if (!s) continue;
       b.el.style.left = (s.dx + s.w / 2) + 'px';
-      b.el.style.top = (s.y + bobOffset(s) - 6) + 'px';
+      // long replies grow upward; never let them cover the title
+      const minTop = (title.classList.contains('show') ? title.getBoundingClientRect().bottom : 0) + 8;
+      b.el.style.top = Math.max(s.y + bobOffset(s) - 6, minTop + b.el.offsetHeight) + 'px';
     }
   }
 
