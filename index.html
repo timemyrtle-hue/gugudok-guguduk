@@ -19,6 +19,7 @@
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; overflow: hidden; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     background: radial-gradient(ellipse at 30% 0%, var(--room-top), var(--room-bottom) 75%);
     color: var(--ink);
@@ -101,15 +102,17 @@
   #heard.show { opacity: 1; }
 
   #controls {
-    position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
-    z-index: 5; display: flex; gap: 10px; align-items: center;
-    width: min(760px, calc(100vw - 32px));
+    /* left + right (not a width) so it can never run past the screen edge */
+    position: fixed; z-index: 5; display: flex; gap: 10px; align-items: center;
+    left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px));
+    bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+    max-width: 760px; margin: 0 auto;
   }
-  form { flex: 1; display: flex; gap: 8px; }
+  form { flex: 1; min-width: 0; display: flex; gap: 8px; }
   #say {
     flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 2px solid rgba(255,255,255,.18);
     background: rgba(255,255,255,.08); color: #fff; padding: 0 20px;
-    font: inherit; font-size: 19px; outline: none;
+    font: inherit; font-size: 18px; outline: none;
   }
   #say:focus { border-color: #ffd98f; background: rgba(255,255,255,.14); }
   #say { text-overflow: ellipsis; }
@@ -128,6 +131,8 @@
     #send { padding: 0 14px; }
     #heard { bottom: 100px; font-size: 16px; }
     .bubble { padding: 10px 12px; font-size: 14px; border-radius: 18px; }
+    #say { height: 46px; padding: 0 14px; font-size: 16px; }
+    #send { height: 46px; padding: 0 14px; font-size: 16px; }
   }
 </style>
 </head>
@@ -440,6 +445,15 @@
     });
     state = 'gather'; stateT = 0;
     pendingLine = line;
+    layoutSize = W + 'x' + H;
+  }
+
+  // the screen can change size mid-transformation (a phone keyboard closing),
+  // so the twins are laid out again once they are formed
+  let layoutSize = '';
+  function relayout() {
+    shown = layoutFor(shown).map(s => (s.alpha = 1, s));
+    layoutSize = W + 'x' + H;
   }
 
   let pendingLine = null;
@@ -487,6 +501,7 @@
         b.el.style.maxWidth = Math.min(400, room) + 'px';
         b.el.style.left = (right ? s.dx - 10 : s.dx + s.w + 10) + 'px';
         b.el.style.top = Math.max(8, s.y + bobOffset(s) + 4) + 'px';
+        s.fit = 1;
         continue;
       }
       b.el.style.maxWidth = maxW + 'px';
@@ -495,7 +510,10 @@
       b.el.style.left = Math.min(Math.max(s.dx + s.w / 2, half + 8), W - half - 8) + 'px';
       // long replies grow upward; never let them cover the title
       const minTop = (title.classList.contains('show') ? title.getBoundingClientRect().bottom : 0) + 8;
-      b.el.style.top = Math.max(s.y + bobOffset(s) - 6, minTop + b.el.offsetHeight) + 'px';
+      const bubbleBottom = Math.max(s.y + bobOffset(s) - 6, minTop + b.el.offsetHeight);
+      b.el.style.top = bubbleBottom + 'px';
+      // if the bubble reaches down past the twin's head, shrink the twin to stay below it
+      s.fit = Math.max(0.5, Math.min(1, (s.y + s.h - (bubbleBottom + 18)) / s.h));
     }
   }
 
@@ -586,10 +604,18 @@
     toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
   }
 
+  // on a phone, close the keyboard first so the twins are laid out on the full screen
+  const touch = window.matchMedia && matchMedia('(pointer: coarse)').matches;
   form.addEventListener('submit', e => {
     e.preventDefault();
-    hear(input.value);
+    const text = input.value;
     input.value = '';
+    if (touch && document.activeElement === input) {
+      input.blur();
+      setTimeout(() => hear(text), 350);
+    } else {
+      hear(text);
+    }
   });
   stage.addEventListener('click', e => {
     if (state !== 'shown') return;
@@ -628,7 +654,9 @@
         ctx.globalAlpha = s.alpha;
         // pop: a quick squash-and-grow when the pose changes
         if (s.pop) s.pop = Math.max(0, s.pop - dt * 3);
-        const k = s.pop ? 1 - 0.35 * s.pop * s.pop : 1;
+        // fit: shrinks the twin (feet stay put) when a tall speech bubble needs the room
+        s.fitNow = lerp(s.fitNow || 1, s.fit || 1, Math.min(1, dt * 6));
+        const k = (s.pop ? 1 - 0.35 * s.pop * s.pop : 1) * s.fitNow;
         ctx.save();
         ctx.imageSmoothingEnabled = true;
         ctx.imageSmoothingQuality = 'high';
@@ -645,6 +673,7 @@
       state = 'shown'; stateT = 0;
       burst(shown.filter(s => s.isNew));
       shown.forEach(s => delete s.isNew);
+      if (layoutSize !== W + 'x' + H) relayout();
       if (pendingLine) {
         pendingLine.forEach(([k, line], i) => setTimeout(() => say(k, line), 250 + i * 1500));
         pendingLine = null;
@@ -753,9 +782,7 @@
     for (const c of [shelf, stage]) { c.width = W * DPR; c.height = H * DPR; c.style.width = W + 'px'; c.style.height = H + 'px'; }
     drawShelf();
     particles.forEach(p => { const [x, y] = randomIdlePos(); p.hx = x; p.hy = y; if (state === 'idle') { p.x = x; p.y = y; } });
-    if (state === 'shown') {
-      shown = layoutFor(shown).map(s => (s.alpha = 1, s));
-    }
+    if (state === 'shown') relayout();
   }
   window.addEventListener('resize', resize);
   resize();
