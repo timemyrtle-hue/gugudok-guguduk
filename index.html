@@ -64,7 +64,7 @@
   @keyframes breathe { 50% { opacity: .45; } }
 
   .bubble {
-    position: fixed; z-index: 4; width: max-content; max-width: min(400px, 38vw);
+    position: fixed; z-index: 4; width: max-content; max-width: 400px;
     background: #fff; color: #3b2a55; border-radius: 22px;
     padding: 12px 18px; font-size: clamp(15px, 1.5vw, 19px); line-height: 1.4; word-break: keep-all;
     box-shadow: 0 10px 30px rgba(0,0,0,.35);
@@ -78,6 +78,18 @@
     border: 12px solid transparent; border-bottom: 0; border-top-color: #fff;
   }
   .bubble .who { display: block; font-size: .8em; margin-bottom: 2px; }
+  /* sideways phone: the bubble sits beside its character instead of above it */
+  .bubble.side { transform: scale(.6); transform-origin: left top; }
+  .bubble.side.show { transform: none; }
+  .bubble.side.right { transform: translateX(-100%) scale(.6); transform-origin: right top; }
+  .bubble.side.right.show { transform: translateX(-100%); }
+  .bubble.side::after { display: none; }
+  @media (max-height: 520px) and (orientation: landscape) {
+    #title { top: 6px; }
+    #title .sub { font-size: 13px; }
+    #title h1 { font-size: 30px; letter-spacing: 2px; }
+    .bubble { padding: 10px 12px; font-size: 14px; border-radius: 16px; }
+  }
 
   #heard {
     position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
@@ -115,6 +127,7 @@
   @media (max-width: 600px) {
     #send { padding: 0 14px; }
     #heard { bottom: 100px; font-size: 16px; }
+    .bubble { padding: 10px 12px; font-size: 14px; border-radius: 18px; }
   }
 </style>
 </head>
@@ -336,21 +349,43 @@
   let sparkles = [];
 
   // the title appears above the characters, so they stand below it
+  // on a narrow (phone) screen each twin gets its own half of the width and
+  // stands near the bottom, leaving the space above for the speech bubbles
+  const isNarrow = () => W < 700;
+  // a phone held sideways: too short for bubbles above, so they go beside the twins
+  const isShort = () => H < 520 && W > H;
   function layoutFor(items) {
+    if (isShort()) return sideLayout(items);
+    const narrow = isNarrow();
     const top0 = Math.min(240, H * 0.32);
-    const bottom = H - 120;
+    const bottom = H - (narrow ? 150 : 120);
+    const slotW = items.length === 1 ? (narrow ? W * 0.78 : W) : (narrow ? W / 2 - 14 : W);
     const out = [];
     items.forEach(({ key, pose }, i) => {
       const img = IMGS[pose.id];
       // small source images get blurry when blown up too far
-      const h = Math.max(160, Math.min(440, bottom - top0, img.height * 1.9));
+      const h = Math.max(120, Math.min(440, bottom - top0, img.height * 1.9, slotW * img.height / img.width));
       const w = h * img.width / img.height;
-      const cx = items.length === 1 ? W / 2 : W / 2 + (i === 0 ? -1 : 1) * Math.min(W * 0.22, w * 0.62);
-      const top = top0 + Math.max(0, (bottom - top0 - h) / 2);
+      const cx = items.length === 1 ? W / 2
+        : narrow ? W * (i === 0 ? 0.26 : 0.74)
+        : W / 2 + (i === 0 ? -1 : 1) * Math.min(W * 0.22, w * 0.62);
+      const top = narrow ? bottom - h : top0 + Math.max(0, (bottom - top0 - h) / 2);
       // dx is where it is drawn; it glides to x when the layout changes
       out.push({ key, pose, img, x: cx - w / 2, dx: cx - w / 2, y: top, w, h, alpha: 0, bob: Math.random() * 6 });
     });
     return out;
+  }
+
+  function sideLayout(items) {
+    const top0 = 64, bottom = H - 92;
+    const two = items.length === 2;
+    return items.map(({ key, pose }, i) => {
+      const img = IMGS[pose.id];
+      const h = Math.max(100, Math.min(440, bottom - top0, (two ? W * 0.24 : W * 0.4) * img.height / img.width));
+      const w = h * img.width / img.height;
+      const cx = two ? (i === 0 ? 16 + w / 2 : W - 16 - w / 2) : W * 0.3;
+      return { key, pose, img, x: cx - w / 2, dx: cx - w / 2, y: bottom - h, w, h, alpha: 0, bob: Math.random() * 6 };
+    });
   }
 
   function summon(keys, topic) {
@@ -434,10 +469,30 @@
     b.el.classList.add('show');
   }
   function positionBubbles() {
+    const short = isShort();
+    // two bubbles share the width; one bubble may use most of it
+    const maxW = shown.length === 2 ? Math.min(400, W / 2 - (isNarrow() ? 12 : 24)) : Math.min(400, W - 32);
     for (const b of bubbles) {
       const s = shown.find(c => c.key === b.key);
       if (!s) continue;
-      b.el.style.left = (s.dx + s.w / 2) + 'px';
+      const right = short && shown.length === 2 && s.x + s.w / 2 > W / 2;
+      b.el.classList.toggle('side', short);
+      b.el.classList.toggle('right', right);
+      if (short) {
+        // beside the character, pointing toward the middle of the screen
+        // with two twins each bubble stops at the middle of the screen
+        const room = shown.length === 1 ? W - (s.dx + s.w) - 26
+          : right ? s.dx - 10 - (W / 2 + 6)
+          : W / 2 - 6 - (s.dx + s.w + 10);
+        b.el.style.maxWidth = Math.min(400, room) + 'px';
+        b.el.style.left = (right ? s.dx - 10 : s.dx + s.w + 10) + 'px';
+        b.el.style.top = Math.max(8, s.y + bobOffset(s) + 4) + 'px';
+        continue;
+      }
+      b.el.style.maxWidth = maxW + 'px';
+      // keep the bubble inside the screen edges
+      const half = b.el.offsetWidth / 2;
+      b.el.style.left = Math.min(Math.max(s.dx + s.w / 2, half + 8), W - half - 8) + 'px';
       // long replies grow upward; never let them cover the title
       const minTop = (title.classList.contains('show') ? title.getBoundingClientRect().bottom : 0) + 8;
       b.el.style.top = Math.max(s.y + bobOffset(s) - 6, minTop + b.el.offsetHeight) + 'px';
