@@ -93,15 +93,6 @@
     z-index: 5; display: flex; gap: 10px; align-items: center;
     width: min(760px, calc(100vw - 32px));
   }
-  #mic {
-    flex: none; width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
-    background: linear-gradient(135deg, #ffe7b8, #d9a35c); color: #fff; font-size: 28px;
-    box-shadow: 0 6px 20px rgba(255, 210, 140, .4);
-    transition: transform .15s;
-  }
-  #mic:hover { transform: scale(1.06); }
-  #mic.on { background: var(--pink); animation: pulse 1.2s ease-in-out infinite; }
-  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,95,176,.6); } 50% { box-shadow: 0 0 0 16px rgba(255,95,176,0); } }
   form { flex: 1; display: flex; gap: 8px; }
   #say {
     flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 2px solid rgba(255,255,255,.18);
@@ -122,7 +113,6 @@
   }
   #toast.show { opacity: 1; }
   @media (max-width: 600px) {
-    #mic { width: 54px; height: 54px; font-size: 24px; }
     #send { padding: 0 14px; }
     #heard { bottom: 100px; font-size: 16px; }
   }
@@ -142,7 +132,6 @@
 <div id="toast"></div>
 
 <div id="controls">
-  <button id="mic" title="마이크로 말하기">🎤</button>
   <form id="form">
     <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
     <button id="send" type="submit">말하기</button>
@@ -160,7 +149,6 @@
   const hint = document.getElementById('hint');
   const heard = document.getElementById('heard');
   const toastEl = document.getElementById('toast');
-  const micBtn = document.getElementById('mic');
   const form = document.getElementById('form');
   const input = document.getElementById('say');
   const title = document.getElementById('title');
@@ -346,7 +334,6 @@
   let stateT = 0;
   let shown = []; // [{key, x, y, w, h, alpha, bob}]
   let sparkles = [];
-  let listeningBoost = 0; // dust gets excited while you talk
 
   // the title appears above the characters, so they stand below it
   function layoutFor(items) {
@@ -553,79 +540,6 @@
     if (s) say(s.key, reply('poke', s.key, 'chat'));
   });
 
-  // ---------- microphone ----------
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  let rec = null, listening = false;
-  let audioCtx, analyser, levelBuf, loudSince = 0;
-
-  micBtn.onclick = () => listening ? stopListening() : startListening();
-  // embedded pages (like a shared link viewer) are not allowed to use the microphone
-  let embedded = true;
-  try { embedded = window.top !== window.self; } catch (_) {}
-  if (embedded || !navigator.mediaDevices) micBtn.hidden = true;
-
-  async function startListening() {
-    listening = true;
-    micBtn.classList.add('on');
-    micBtn.textContent = '👂';
-    // volume meter makes the dust tremble as you speak
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      audioCtx.createMediaStreamSource(stream).connect(analyser);
-      levelBuf = new Uint8Array(analyser.fftSize);
-      micStream = stream;
-    } catch (err) {
-      toast('마이크를 쓸 수 없어요. 아래 칸에 글로 말을 걸어 주세요!');
-      stopListening();
-      return;
-    }
-    if (SR) {
-      rec = new SR();
-      rec.lang = 'ko-KR';
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.onresult = e => {
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) hear(r[0].transcript);
-          else showHeard(r[0].transcript + ' …');
-        }
-      };
-      rec.onerror = e => {
-        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-          toast('음성 인식이 막혀 있어요. 소리를 내면 캐릭터가 나타나요!');
-          rec = null;
-        }
-      };
-      rec.onend = () => { if (listening && rec) try { rec.start(); } catch (_) {} };
-      try { rec.start(); } catch (_) {}
-      toast('듣고 있어요! 환영의 말을 들려주세요 🎤', 2600);
-    } else {
-      toast('이 브라우저는 말을 알아듣지 못해요. 소리를 내면 캐릭터가 나타나요!');
-    }
-  }
-  let micStream = null;
-  function stopListening() {
-    listening = false;
-    micBtn.classList.remove('on');
-    micBtn.textContent = '🎤';
-    if (rec) { const r = rec; rec = null; try { r.stop(); } catch (_) {} }
-    if (micStream) micStream.getTracks().forEach(t => t.stop());
-    micStream = null;
-    if (audioCtx) audioCtx.close();
-    audioCtx = analyser = null;
-  }
-  function micLevel() {
-    if (!analyser) return 0;
-    analyser.getByteTimeDomainData(levelBuf);
-    let sum = 0;
-    for (let i = 0; i < levelBuf.length; i++) { const v = (levelBuf[i] - 128) / 128; sum += v * v; }
-    return Math.sqrt(sum / levelBuf.length);
-  }
-
   // ---------- animation loop ----------
   const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   const lerp = (a, b, t) => a + (b - a) * t;
@@ -636,14 +550,6 @@
     // the transformation keeps real time even when frames are slow
     stateT += Math.min(1, (now - last) / 1000);
     last = now;
-
-    const lvl = micLevel();
-    listeningBoost = lerp(listeningBoost, Math.min(1, lvl * 9), 0.15);
-    // without speech recognition, a loud sound alone wakes the dust
-    if (listening && !rec && state === 'idle') {
-      if (lvl > 0.08) { if (!loudSince) loudSince = now; else if (now - loudSince > 400) { loudSince = 0; hear('안녕'); } }
-      else loudSince = 0;
-    }
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
@@ -708,7 +614,7 @@
       } else if (state === 'idle') {
         if (i >= IDLE_COUNT) { p.a = 0; continue; }
         // brownian drift, pulled gently home, shaken by your voice
-        const jitter = 0.02 + listeningBoost * 0.5;
+        const jitter = 0.02;
         p.vx += (Math.random() - 0.5) * jitter + (p.hx - p.x) * 0.0006;
         p.vy += (Math.random() - 0.5) * jitter + (p.hy - p.y) * 0.0006 - 0.002;
         p.vx *= 0.97; p.vy *= 0.97;
@@ -723,7 +629,7 @@
       if (p.a <= 0.01) continue;
       const flying = state === 'gather';
       const glint = flying ? 1 : (0.35 + 0.65 * Math.abs(Math.sin(now / 1000 * p.tw + p.phase))) * (0.35 + 0.9 * inBeam(p.x, p.y));
-      const sz = flying ? 2.4 : p.size * (1 + listeningBoost * 0.8);
+      const sz = flying ? 2.4 : p.size;
       ctx.globalAlpha = Math.min(1, p.a * glint);
       ctx.fillStyle = `rgb(${p.col[0] | 0},${p.col[1] | 0},${p.col[2] | 0})`;
       ctx.beginPath();
