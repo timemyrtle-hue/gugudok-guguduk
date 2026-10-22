@@ -1,0 +1,806 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구구독 구구덕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --room-top: #2a2140;
+    --room-bottom: #120e1f;
+    --dok: #4cc6ea;
+    --duk: #a35cf5;
+    --pink: #ff5fb0;
+    --ink: #fff8ee;
+    --muted: #cbbfe6;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: radial-gradient(ellipse at 30% 0%, var(--room-top), var(--room-bottom) 75%);
+    color: var(--ink);
+    font-family: 'Jua', 'Malgun Gothic', sans-serif;
+    user-select: none;
+  }
+  canvas { position: fixed; inset: 0; display: block; }
+  #shelf { z-index: 0; }
+  #stage { z-index: 1; }
+
+  #title {
+    position: fixed; top: 18px; left: 0; right: 0; z-index: 3;
+    text-align: center; pointer-events: none;
+    opacity: 0; transition: opacity .5s;
+  }
+  #title.show { opacity: 1; }
+  #title .sub {
+    font-family: 'Gaegu', sans-serif; font-size: clamp(16px, 2.2vw, 26px);
+    color: var(--muted); letter-spacing: 2px;
+  }
+  #title h1 {
+    margin: 2px 0 0; font-size: clamp(34px, 5.5vw, 66px); font-weight: normal;
+    letter-spacing: 4px; text-shadow: 0 4px 18px rgba(0,0,0,.45);
+  }
+  #title .dok { color: var(--dok); }
+  #title .duk { color: var(--duk); }
+  #title h1 span span, #title .sub span { display: inline-block; opacity: 0; transform: translateY(18px) scale(.4); }
+  #title.show h1 span span, #title.show .sub span {
+    animation: pop .55s cubic-bezier(.3,1.7,.5,1) forwards;
+    animation-delay: calc(var(--i) * 70ms);
+  }
+  @keyframes pop { to { opacity: 1; transform: none; } }
+
+  #hint {
+    position: fixed; left: 50%; top: 52%; transform: translate(-50%, -50%);
+    z-index: 2; font-size: clamp(18px, 2.6vw, 30px); color: rgba(255, 240, 210, .85);
+    width: min(900px, calc(100vw - 32px)); text-wrap: balance; word-break: keep-all;
+    text-align: center; pointer-events: none; transition: opacity .6s;
+    text-shadow: 0 0 18px rgba(255, 220, 150, .5);
+    animation: breathe 3s ease-in-out infinite;
+  }
+  #hint.gone { animation: none; opacity: 0; }
+  @keyframes breathe { 50% { opacity: .45; } }
+
+  .bubble {
+    position: fixed; z-index: 4; max-width: min(360px, 80vw);
+    background: #fff; color: #3b2a55; border-radius: 22px;
+    padding: 14px 18px; font-size: clamp(16px, 1.8vw, 21px); line-height: 1.4;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+    transform: translate(-50%, -100%) scale(.6); opacity: 0;
+    transition: opacity .25s, transform .35s cubic-bezier(.3,1.6,.5,1);
+    pointer-events: none;
+  }
+  .bubble.show { opacity: 1; transform: translate(-50%, -100%) scale(1); }
+  .bubble::after {
+    content: ''; position: absolute; left: 50%; bottom: -12px; margin-left: -12px;
+    border: 12px solid transparent; border-bottom: 0; border-top-color: #fff;
+  }
+  .bubble .who { display: block; font-size: .8em; margin-bottom: 2px; }
+
+  #heard {
+    position: fixed; left: 50%; bottom: 120px; transform: translateX(-50%);
+    z-index: 4; padding: 8px 18px; border-radius: 999px;
+    background: rgba(255,255,255,.12); backdrop-filter: blur(6px);
+    font-size: 20px; color: #fff; opacity: 0; transition: opacity .3s;
+    max-width: 90vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #heard.show { opacity: 1; }
+
+  #controls {
+    position: fixed; left: 50%; bottom: calc(28px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    z-index: 5; display: flex; gap: 10px; align-items: center;
+    width: min(760px, calc(100vw - 32px));
+  }
+  #mic {
+    flex: none; width: 64px; height: 64px; border-radius: 50%; border: none; cursor: pointer;
+    background: linear-gradient(135deg, #ffe7b8, #d9a35c); color: #fff; font-size: 28px;
+    box-shadow: 0 6px 20px rgba(255, 210, 140, .4);
+    transition: transform .15s;
+  }
+  #mic:hover { transform: scale(1.06); }
+  #mic.on { background: var(--pink); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(255,95,176,.6); } 50% { box-shadow: 0 0 0 16px rgba(255,95,176,0); } }
+  form { flex: 1; display: flex; gap: 8px; }
+  #say {
+    flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 2px solid rgba(255,255,255,.18);
+    background: rgba(255,255,255,.08); color: #fff; padding: 0 20px;
+    font: inherit; font-size: 19px; outline: none;
+  }
+  #say:focus { border-color: #ffd98f; background: rgba(255,255,255,.14); }
+  #say { text-overflow: ellipsis; }
+  #say::placeholder { color: rgba(255,255,255,.55); font-size: 16px; }
+  #send {
+    flex: none; height: 52px; padding: 0 20px; border-radius: 26px; border: none; cursor: pointer;
+    background: #fff; color: #5b3a8a; font: inherit; font-size: 19px;
+  }
+  #toast {
+    position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6;
+    background: rgba(0,0,0,.6); padding: 10px 18px; border-radius: 12px; font-size: 16px;
+    opacity: 0; transition: opacity .3s; pointer-events: none; text-align: center;
+  }
+  #toast.show { opacity: 1; }
+  @media (max-width: 600px) {
+    #mic { width: 54px; height: 54px; font-size: 24px; }
+    #send { padding: 0 14px; }
+    #heard { bottom: 100px; font-size: 16px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="shelf"></canvas>
+<canvas id="stage"></canvas>
+
+<header id="title" aria-live="polite">
+  <div class="sub" data-split>구미도서관 캐릭터</div>
+  <h1><span class="dok" data-split>구구독</span> <span class="duk" data-split>구구덕</span></h1>
+</header>
+
+<div id="hint">✨ 구미도서관 청소년 공간을 대표하는 구구독 구구덕을 환영해 주세요 ✨</div>
+<div id="heard"></div>
+<div id="toast"></div>
+
+<div id="controls">
+  <button id="mic" title="마이크로 말하기">🎤</button>
+  <form id="form">
+    <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
+    <button id="send" type="submit">말하기</button>
+  </form>
+</div>
+
+<script src="images/chars.js"></script>
+<script src="replies.js"></script>
+<script>
+(() => {
+  const shelf = document.getElementById('shelf');
+  const stage = document.getElementById('stage');
+  const sctx = shelf.getContext('2d');
+  const ctx = stage.getContext('2d');
+  const hint = document.getElementById('hint');
+  const heard = document.getElementById('heard');
+  const toastEl = document.getElementById('toast');
+  const micBtn = document.getElementById('mic');
+  const form = document.getElementById('form');
+  const input = document.getElementById('say');
+  const title = document.getElementById('title');
+
+  // split the title into letters so they can pop in one by one
+  let letterIndex = 0;
+  title.querySelectorAll('[data-split]').forEach(el => {
+    const text = el.textContent;
+    el.textContent = '';
+    for (const ch of text) {
+      const s = document.createElement('span');
+      s.textContent = ch === ' ' ? ' ' : ch;
+      s.style.setProperty('--i', letterIndex++);
+      el.appendChild(s);
+    }
+  });
+
+  let W = 0, H = 0, DPR = 1;
+  const DUST = [255, 236, 200];
+  const IDLE_COUNT = 420;
+
+  // ---------- characters ----------
+  const CHARS = {
+    dok: { name: '구구독', color: '#2fa9d8' },
+    duk: { name: '구구덕', color: '#8b3ff0' },
+  };
+  // every pose the dust can turn into
+  const POSES = {
+    dok: ['dok-wave', 'dok-music', 'dok-hearteyes', 'dok-read', 'dok-shush', 'dok-books', 'dok-wink', 'dok-hearts'].map(id => ({ id })),
+    duk: ['duk-music', 'duk-search', 'duk-wave', 'duk-read', 'duk-shush', 'duk-books', 'duk-think'].map(id => ({ id })),
+  };
+  // filled with trimmed canvases once the pictures have loaded (see the bottom of the script)
+  const IMGS = {};
+  for (const key in POSES) for (const p of POSES[key]) {
+    IMGS[p.id] = new Image();
+    IMGS[p.id].src = window.CHAR_IMAGES[p.id];
+  }
+  // the original art has wide transparent margins; crop each picture to the figure itself
+  function trim(img) {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth; c.height = img.naturalHeight;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0);
+    const d = x.getImageData(0, 0, c.width, c.height).data;
+    let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+    for (let j = 0; j < c.height; j += 2) for (let i = 0; i < c.width; i += 2) {
+      if (d[(j * c.width + i) * 4 + 3] > 8) {
+        if (i < x0) x0 = i; if (i > x1) x1 = i;
+        if (j < y0) y0 = j; if (j > y1) y1 = j;
+      }
+    }
+    if (x1 <= x0 || y1 <= y0) return c;
+    const pad = 4;
+    x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad);
+    x1 = Math.min(c.width, x1 + pad); y1 = Math.min(c.height, y1 + pad);
+    const out = document.createElement('canvas');
+    out.width = x1 - x0; out.height = y1 - y0;
+    out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+    return out;
+  }
+  const lastPose = {};
+  function randomPose(key) {
+    const list = POSES[key].filter(p => p !== lastPose[key]);
+    return (lastPose[key] = pick(list));
+  }
+
+  // ---------- background: bookshelves + light beam ----------
+  function drawShelf() {
+    sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    sctx.clearRect(0, 0, W, H);
+    const rnd = mulberry(7);
+    const palette = ['#5b3f8f', '#3f6fa8', '#a6466f', '#c08a3e', '#2f7d6d', '#7c4ea8', '#4d5fb8', '#b5566a', '#3c8fa5', '#8a6a3a'];
+    const shelfH = Math.max(110, H / 5.2);
+    const rows = Math.ceil(H / shelfH) + 1;
+    for (let r = 0; r < rows; r++) {
+      const baseY = (r + 1) * shelfH;
+      let x = -10;
+      while (x < W + 10) {
+        const bw = 14 + rnd() * 26;
+        const bh = shelfH * (0.55 + rnd() * 0.32);
+        const tilt = rnd() < 0.06 ? (rnd() - 0.5) * 0.25 : 0;
+        sctx.save();
+        sctx.translate(x + bw / 2, baseY - 8);
+        sctx.rotate(tilt);
+        sctx.fillStyle = palette[Math.floor(rnd() * palette.length)];
+        sctx.globalAlpha = 0.28;
+        roundRect(sctx, -bw / 2, -bh, bw - 2, bh, 3);
+        sctx.fill();
+        sctx.globalAlpha = 0.18;
+        sctx.fillStyle = '#fff';
+        sctx.fillRect(-bw / 2 + 3, -bh + 10, bw - 8, 3);
+        sctx.fillRect(-bw / 2 + 3, -bh * 0.3, bw - 8, 2);
+        sctx.restore();
+        x += bw + (rnd() < 0.08 ? 20 + rnd() * 30 : 0);
+      }
+      sctx.globalAlpha = 0.55;
+      sctx.fillStyle = '#3a2a1f';
+      sctx.fillRect(0, baseY - 8, W, 12);
+    }
+    sctx.globalAlpha = 1;
+    // dim the room so the beam pops
+    const dim = sctx.createRadialGradient(W * 0.5, H * 0.55, 0, W * 0.5, H * 0.55, Math.max(W, H) * 0.8);
+    dim.addColorStop(0, 'rgba(18,14,31,0.25)');
+    dim.addColorStop(1, 'rgba(18,14,31,0.85)');
+    sctx.fillStyle = dim;
+    sctx.fillRect(0, 0, W, H);
+    // diagonal sunbeam from the top-left window
+    const beam = beamPoly();
+    const g = sctx.createLinearGradient(beam[0][0], 0, W * 0.6, H);
+    g.addColorStop(0, 'rgba(255,230,180,0.30)');
+    g.addColorStop(1, 'rgba(255,230,180,0.03)');
+    sctx.fillStyle = g;
+    sctx.beginPath();
+    beam.forEach(([px, py], i) => i ? sctx.lineTo(px, py) : sctx.moveTo(px, py));
+    sctx.closePath();
+    sctx.filter = 'blur(18px)';
+    sctx.fill();
+    sctx.filter = 'none';
+  }
+  function beamPoly() {
+    return [[W * 0.12, -20], [W * 0.42, -20], [W * 0.88, H + 20], [W * 0.38, H + 20]];
+  }
+  function inBeam(x, y) {
+    // horizontal distance from the beam's centre line, normalised to its half width
+    const t = y / H;
+    const cx = W * (0.27 + 0.36 * t);
+    const half = W * (0.15 + 0.1 * t);
+    return Math.max(0, 1 - Math.abs(x - cx) / half);
+  }
+  function randomIdlePos() {
+    // most dust lives in the light beam, a little drifts elsewhere
+    if (Math.random() < 0.8) {
+      const y = Math.random() * H;
+      const t = y / H;
+      const cx = W * (0.27 + 0.36 * t);
+      const half = W * (0.15 + 0.1 * t);
+      return [cx + (Math.random() * 2 - 1) * half * Math.random(), y];
+    }
+    return [Math.random() * W, Math.random() * H];
+  }
+
+  // ---------- particles ----------
+  const particles = [];
+  function makeParticle(visible) {
+    const [x, y] = randomIdlePos();
+    return {
+      x, y, hx: x, hy: y,
+      vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15,
+      size: 0.8 + Math.random() * 1.9,
+      phase: Math.random() * Math.PI * 2,
+      tw: 0.6 + Math.random() * 1.6,
+      a: visible ? 1 : 0, ta: visible ? 1 : 0,
+      col: DUST.slice(),
+      // flight
+      sx: 0, sy: 0, tx: 0, ty: 0, cx: 0, cy: 0, tcol: null, scol: null, delay: 0, dur: 1,
+    };
+  }
+  function ensureParticles(n) {
+    while (particles.length < n) particles.push(makeParticle(false));
+  }
+
+  // pixel targets for a character drawn at a given rect
+  function sampleTargets(img, x, y, w, h, count) {
+    const off = document.createElement('canvas');
+    off.width = Math.round(w); off.height = Math.round(h);
+    const o = off.getContext('2d');
+    o.drawImage(img, 0, 0, off.width, off.height);
+    const data = o.getImageData(0, 0, off.width, off.height).data;
+    const pts = [];
+    const step = Math.max(2, Math.round(Math.sqrt((off.width * off.height * 0.55) / count)));
+    for (let j = 0; j < off.height; j += step) {
+      for (let i = 0; i < off.width; i += step) {
+        const k = (j * off.width + i) * 4;
+        if (data[k + 3] > 140) pts.push({ x: x + i, y: y + j, col: [data[k], data[k + 1], data[k + 2]] });
+      }
+    }
+    return pts;
+  }
+
+  // ---------- state machine ----------
+  // idle -> gather -> shown (-> gather again when the other twin joins); never back to dust
+  let state = 'idle';
+  let stateT = 0;
+  let shown = []; // [{key, x, y, w, h, alpha, bob}]
+  let sparkles = [];
+  let listeningBoost = 0; // dust gets excited while you talk
+
+  // the title appears above the characters, so they stand below it
+  function layoutFor(items) {
+    const top0 = Math.min(240, H * 0.32);
+    const bottom = H - 120;
+    const out = [];
+    items.forEach(({ key, pose }, i) => {
+      const img = IMGS[pose.id];
+      // small source images get blurry when blown up too far
+      const h = Math.max(160, Math.min(440, bottom - top0, img.height * 1.9));
+      const w = h * img.width / img.height;
+      const cx = items.length === 1 ? W / 2 : W / 2 + (i === 0 ? -1 : 1) * Math.min(W * 0.22, w * 0.62);
+      const top = top0 + Math.max(0, (bottom - top0 - h) / 2);
+      // dx is where it is drawn; it glides to x when the layout changes
+      out.push({ key, pose, img, x: cx - w / 2, dx: cx - w / 2, y: top, w, h, alpha: 0, bob: Math.random() * 6 });
+    });
+    return out;
+  }
+
+  function summon(keys, topic) {
+    if (state === 'gather') return;
+    hint.classList.add('gone');
+    // characters already out stay as they are; only newcomers form out of dust
+    const old = shown;
+    const items = ['dok', 'duk']
+      .filter(k => keys.includes(k) || old.some(s => s.key === k))
+      .map(key => old.find(s => s.key === key) || { key, pose: randomPose(key) });
+    shown = layoutFor(items).map(s => {
+      const prev = old.find(o => o.key === s.key);
+      if (prev) return Object.assign(s, { alpha: 1, bob: prev.bob, dx: prev.dx });
+      s.isNew = true;
+      return s;
+    });
+    const fresh = shown.filter(s => s.isNew);
+    if (!fresh.length) return;
+    // a found pose introduces itself with its own line
+    // a twin who was already out answers right away; the newcomer speaks once formed
+    const line = fresh.map(s => [s.key, reply(topic, s.key, old.length ? 'join' : 'first')]);
+    old.forEach(s => say(s.key, reply(topic, s.key, 'chat')));
+    let targets = [];
+    for (const s of fresh) targets = targets.concat(sampleTargets(s.img, s.x, s.y, s.w, s.h, 2600 / fresh.length + 600));
+    ensureParticles(Math.max(targets.length, IDLE_COUNT));
+    // shuffle so dust from everywhere flows into every part of the body
+    for (let i = targets.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [targets[i], targets[j]] = [targets[j], targets[i]]; }
+    particles.forEach((p, i) => {
+      const t = targets[i];
+      p.sx = p.x; p.sy = p.y;
+      if (!p.a) { // hidden dust rises up from the bookshelves
+        const [hx, hy] = randomIdlePos();
+        p.sx = p.x = hx; p.sy = p.y = hy;
+      }
+      p.scol = p.col.slice();
+      p.delay = Math.random() * 0.7;
+      p.dur = 1.3 + Math.random() * 0.6;
+      if (t) {
+        p.tx = t.x; p.ty = t.y; p.tcol = t.col; p.ta = 1;
+        // swirl control point: orbit around the character centre
+        const c = fresh.length === 1 ? fresh[0] : { x: W / 2, w: 0, y: fresh[0].y, h: fresh[0].h };
+        const ccx = c.x + c.w / 2;
+        const ang = Math.atan2(p.sy - (c.y + c.h / 2), p.sx - ccx) + (Math.random() < 0.5 ? 1 : -1) * 1.6;
+        const rad = Math.max(W, H) * (0.18 + Math.random() * 0.2);
+        p.cx = ccx + Math.cos(ang) * rad;
+        p.cy = c.y + c.h / 2 + Math.sin(ang) * rad * 0.7;
+      } else {
+        p.tx = p.x; p.ty = p.y; p.tcol = DUST; p.ta = 0;
+        p.cx = p.x; p.cy = p.y;
+      }
+      p.a = Math.max(p.a, 0.0001);
+    });
+    state = 'gather'; stateT = 0;
+    pendingLine = line;
+  }
+
+  let pendingLine = null;
+
+  function bobOffset(s) { return Math.sin(performance.now() / 420 + s.bob) * 6; }
+
+  // ---------- speech bubbles ----------
+  let bubbles = [];
+  function say(key, text) {
+    const s = shown.find(c => c.key === key) || shown[0];
+    if (!s) return;
+    let b = bubbles.find(x => x.key === s.key);
+    if (!b) {
+      const el = document.createElement('div');
+      el.className = 'bubble';
+      document.body.appendChild(el);
+      b = { key: s.key, el };
+      bubbles.push(b);
+    }
+    b.el.innerHTML = '';
+    const who = document.createElement('span');
+    who.className = 'who'; who.style.color = CHARS[s.key].color; who.textContent = CHARS[s.key].name;
+    b.el.append(who, document.createTextNode(text));
+    positionBubbles();
+    b.el.classList.remove('show');
+    void b.el.offsetWidth;
+    b.el.classList.add('show');
+  }
+  function positionBubbles() {
+    for (const b of bubbles) {
+      const s = shown.find(c => c.key === b.key);
+      if (!s) continue;
+      b.el.style.left = (s.dx + s.w / 2) + 'px';
+      b.el.style.top = (s.y + bobOffset(s) - 6) + 'px';
+    }
+  }
+
+  // ---------- understanding what you said ----------
+  const pick = a => a[(Math.random() * a.length) | 0];
+  // never say the very same line twice in a row
+  const lastLine = new Map();
+  function pickFresh(a) {
+    let x = pick(a);
+    if (a.length > 1) while (x === lastLine.get(a)) x = pick(a);
+    lastLine.set(a, x);
+    return x;
+  }
+
+  // the expected messages and their replies live in replies.js
+  const REPLIES = window.REPLIES;
+  const BY_ID = Object.fromEntries(REPLIES.map(r => [r.id, r]));
+  BY_ID.other = window.REPLY_OTHER;
+  BY_ID.poke = window.REPLY_POKE;
+  // mode: 'first' (appears alone), 'join' (twin comes out beside the other), 'chat'
+  function reply(topic, key, mode) {
+    const r = BY_ID[topic] || BY_ID.other;
+    if (mode === 'chat') return pickFresh(r[key]);
+    if (topic === 'bye' || topic === 'goodnight') return reply('greet', key, mode); // a goodbye as the very first words
+    if (mode === 'join') {
+      return topic === 'name' ? pickFresh(r.first[key]) : pickFresh(window.REPLY_JOIN[key]) + ' ' + pickFresh(r[key]);
+    }
+    return r.first ? pickFresh(r.first[key]) : pickFresh(window.REPLY_INTRO[key]) + ' ' + pickFresh(r[key]);
+  }
+  function topicOf(t) {
+    const hit = REPLIES.find(r => r.match.test(t));
+    return hit ? hit.id : 'other';
+  }
+  function whoFor(t) {
+    const dok = /구구독|구독|구구톡|독이/.test(t);
+    const duk = /구구덕|구덕|덕이/.test(t);
+    if (/쌍둥이|둘\s*다|모두|같이|다\s*같이|친구들/.test(t) || (dok && duk)) return ['dok', 'duk'];
+    if (dok) return ['dok'];
+    if (duk) return ['duk'];
+    return [Math.random() < 0.5 ? 'dok' : 'duk'];
+  }
+
+  function hear(text) {
+    text = text.trim();
+    if (!text) return;
+    showHeard(text);
+    const topic = topicOf(text);
+    if (state === 'idle') {
+      if (topic === 'bye') { toast('아직 아무도 나오지 않았어요. 먼저 환영 인사를 건네 볼까요?'); return; }
+      summon(whoFor(text), topic);
+      return;
+    }
+    if (state !== 'shown') return;
+    // talking to one twin again brings the other out of the dust
+    if (shown.length === 1) {
+      summon(['dok', 'duk'], topic);
+      return;
+    }
+    const named = /구구독|구독|구구덕|구덕|쌍둥이|둘\s*다|모두/.test(text);
+    const keys = named ? whoFor(text) : shown.map(s => s.key);
+    keys.forEach((k, i) => setTimeout(() => { changePose(k); say(k, reply(topic, k, 'chat')); }, i * 1400));
+  }
+
+  // a revealed twin hops into a new pose (no dust, just a little pop)
+  function changePose(key) {
+    const cur = shown.find(s => s.key === key);
+    if (!cur) return;
+    const next = randomPose(key);
+    shown = layoutFor(shown.map(s => s.key === key ? { key, pose: next } : s)).map(s => {
+      const prev = shown.find(o => o.key === s.key);
+      return Object.assign(s, { alpha: 1, bob: prev.bob, dx: prev.dx, pop: s.key === key ? 1 : 0 });
+    });
+    burst(shown.filter(s => s.key === key), 18);
+  }
+
+  let heardTimer;
+  function showHeard(text) {
+    heard.textContent = '🗨️ ' + text;
+    heard.classList.add('show');
+    clearTimeout(heardTimer);
+    heardTimer = setTimeout(() => heard.classList.remove('show'), 2800);
+  }
+  let toastTimer;
+  function toast(msg, ms = 3200) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), ms);
+  }
+
+  form.addEventListener('submit', e => {
+    e.preventDefault();
+    hear(input.value);
+    input.value = '';
+  });
+  stage.addEventListener('click', e => {
+    if (state !== 'shown') return;
+    const s = shown.find(s => e.clientX > s.dx && e.clientX < s.dx + s.w && e.clientY > s.y && e.clientY < s.y + s.h);
+    if (s) say(s.key, reply('poke', s.key, 'chat'));
+  });
+
+  // ---------- microphone ----------
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let rec = null, listening = false;
+  let audioCtx, analyser, levelBuf, loudSince = 0;
+
+  micBtn.onclick = () => listening ? stopListening() : startListening();
+  // embedded pages (like a shared link viewer) are not allowed to use the microphone
+  let embedded = true;
+  try { embedded = window.top !== window.self; } catch (_) {}
+  if (embedded || !navigator.mediaDevices) micBtn.hidden = true;
+
+  async function startListening() {
+    listening = true;
+    micBtn.classList.add('on');
+    micBtn.textContent = '👂';
+    // volume meter makes the dust tremble as you speak
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 512;
+      audioCtx.createMediaStreamSource(stream).connect(analyser);
+      levelBuf = new Uint8Array(analyser.fftSize);
+      micStream = stream;
+    } catch (err) {
+      toast('마이크를 쓸 수 없어요. 아래 칸에 글로 말을 걸어 주세요!');
+      stopListening();
+      return;
+    }
+    if (SR) {
+      rec = new SR();
+      rec.lang = 'ko-KR';
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.onresult = e => {
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const r = e.results[i];
+          if (r.isFinal) hear(r[0].transcript);
+          else showHeard(r[0].transcript + ' …');
+        }
+      };
+      rec.onerror = e => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          toast('음성 인식이 막혀 있어요. 소리를 내면 캐릭터가 나타나요!');
+          rec = null;
+        }
+      };
+      rec.onend = () => { if (listening && rec) try { rec.start(); } catch (_) {} };
+      try { rec.start(); } catch (_) {}
+      toast('듣고 있어요! 환영의 말을 들려주세요 🎤', 2600);
+    } else {
+      toast('이 브라우저는 말을 알아듣지 못해요. 소리를 내면 캐릭터가 나타나요!');
+    }
+  }
+  let micStream = null;
+  function stopListening() {
+    listening = false;
+    micBtn.classList.remove('on');
+    micBtn.textContent = '🎤';
+    if (rec) { const r = rec; rec = null; try { r.stop(); } catch (_) {} }
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+    micStream = null;
+    if (audioCtx) audioCtx.close();
+    audioCtx = analyser = null;
+  }
+  function micLevel() {
+    if (!analyser) return 0;
+    analyser.getByteTimeDomainData(levelBuf);
+    let sum = 0;
+    for (let i = 0; i < levelBuf.length; i++) { const v = (levelBuf[i] - 128) / 128; sum += v * v; }
+    return Math.sqrt(sum / levelBuf.length);
+  }
+
+  // ---------- animation loop ----------
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  let last = performance.now();
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    // the transformation keeps real time even when frames are slow
+    stateT += Math.min(1, (now - last) / 1000);
+    last = now;
+
+    const lvl = micLevel();
+    listeningBoost = lerp(listeningBoost, Math.min(1, lvl * 9), 0.15);
+    // without speech recognition, a loud sound alone wakes the dust
+    if (listening && !rec && state === 'idle') {
+      if (lvl > 0.08) { if (!loudSince) loudSince = now; else if (now - loudSince > 400) { loudSince = 0; hear('안녕'); } }
+      else loudSince = 0;
+    }
+
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    // characters (drawn under the last flying dust)
+    if (shown.length) {
+      for (const s of shown) {
+        // a newcomer only appears once its dust has nearly gathered
+        if (s.isNew && state === 'gather' && stateT <= 1.9) continue;
+        s.alpha = Math.min(1, s.alpha + dt * 2.2);
+        s.dx = lerp(s.dx, s.x, Math.min(1, dt * 5));
+        const by = bobOffset(s);
+        // soft glow + shadow
+        ctx.globalAlpha = s.alpha * 0.35;
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.beginPath();
+        ctx.ellipse(s.dx + s.w / 2, s.y + s.h - 4, s.w * 0.36, 12, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = s.alpha;
+        // pop: a quick squash-and-grow when the pose changes
+        if (s.pop) s.pop = Math.max(0, s.pop - dt * 3);
+        const k = s.pop ? 1 - 0.35 * s.pop * s.pop : 1;
+        ctx.save();
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.translate(Math.round(s.dx + s.w / 2), Math.round(s.y + s.h + by));
+        ctx.scale(k, k);
+        ctx.drawImage(s.img, -s.w / 2, -s.h, s.w, s.h);
+        ctx.restore();
+      }
+      ctx.globalAlpha = 1;
+      positionBubbles();
+    }
+
+    if (state === 'gather' && stateT > 2.6) {
+      state = 'shown'; stateT = 0;
+      burst(shown.filter(s => s.isNew));
+      shown.forEach(s => delete s.isNew);
+      if (pendingLine) {
+        pendingLine.forEach(([k, line], i) => setTimeout(() => say(k, line), 250 + i * 1500));
+        pendingLine = null;
+      }
+    }
+
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      if (state === 'gather') {
+        const t = Math.max(0, Math.min(1, (stateT - p.delay) / p.dur));
+        const e = ease(t);
+        // quadratic bezier: start -> swirl -> target
+        const u = 1 - e;
+        p.x = u * u * p.sx + 2 * u * e * p.cx + e * e * p.tx;
+        p.y = u * u * p.sy + 2 * u * e * p.cy + e * e * p.ty;
+        const ct = Math.max(0, (e - 0.35) / 0.65);
+        p.col[0] = lerp(p.scol[0], p.tcol[0], ct);
+        p.col[1] = lerp(p.scol[1], p.tcol[1], ct);
+        p.col[2] = lerp(p.scol[2], p.tcol[2], ct);
+        p.a = p.ta ? Math.min(1, 0.3 + t) : Math.max(0, 1 - t * 2);
+        // the real image fades in on top, so the dust fades out at the end
+        if (stateT > 1.9) p.a *= Math.max(0, 1 - (stateT - 1.9) / 0.7);
+      } else if (state === 'idle') {
+        if (i >= IDLE_COUNT) { p.a = 0; continue; }
+        // brownian drift, pulled gently home, shaken by your voice
+        const jitter = 0.02 + listeningBoost * 0.5;
+        p.vx += (Math.random() - 0.5) * jitter + (p.hx - p.x) * 0.0006;
+        p.vy += (Math.random() - 0.5) * jitter + (p.hy - p.y) * 0.0006 - 0.002;
+        p.vx *= 0.97; p.vy *= 0.97;
+        p.x += p.vx; p.y += p.vy;
+        if (p.y < -10) { p.y = H + 10; p.hy = H * Math.random(); }
+        p.a = 1;
+      } else {
+        // once the characters are out, the dust is gone so they stay crisp
+        p.a = 0;
+        continue;
+      }
+      if (p.a <= 0.01) continue;
+      const flying = state === 'gather';
+      const glint = flying ? 1 : (0.35 + 0.65 * Math.abs(Math.sin(now / 1000 * p.tw + p.phase))) * (0.35 + 0.9 * inBeam(p.x, p.y));
+      const sz = flying ? 2.4 : p.size * (1 + listeningBoost * 0.8);
+      ctx.globalAlpha = Math.min(1, p.a * glint);
+      ctx.fillStyle = `rgb(${p.col[0] | 0},${p.col[1] | 0},${p.col[2] | 0})`;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, sz, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // sparkles
+    for (let i = sparkles.length - 1; i >= 0; i--) {
+      const s = sparkles[i];
+      s.life -= dt;
+      if (s.life <= 0) { sparkles.splice(i, 1); continue; }
+      s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 60 * dt;
+      ctx.globalAlpha = Math.min(1, s.life * 1.5);
+      star(s.x, s.y, s.r * (0.6 + s.life), s.col);
+    }
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'source-over';
+    requestAnimationFrame(frame);
+  }
+
+  function burst(list, count = 40) {
+    title.classList.add('show');
+    for (const s of list) {
+      for (let i = 0; i < count; i++) {
+        const a = Math.random() * Math.PI * 2, v = 80 + Math.random() * 260;
+        sparkles.push({
+          x: s.x + s.w / 2, y: s.y + s.h * 0.45, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60,
+          r: 3 + Math.random() * 5, life: 0.7 + Math.random() * 0.8,
+          col: pick(['#fff3c4', '#ffd1ec', s.key === 'dok' ? '#8fe6ff' : '#d3b0ff']),
+        });
+      }
+    }
+  }
+  function star(x, y, r, col) {
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    for (let i = 0; i < 8; i++) {
+      const rr = i % 2 ? r * 0.35 : r;
+      const a = i * Math.PI / 4;
+      ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ---------- helpers ----------
+  function roundRect(c, x, y, w, h, r) {
+    c.beginPath();
+    c.moveTo(x + r, y);
+    c.arcTo(x + w, y, x + w, y + h, r);
+    c.arcTo(x + w, y + h, x, y + h, r);
+    c.arcTo(x, y + h, x, y, r);
+    c.arcTo(x, y, x + w, y, r);
+    c.closePath();
+  }
+  function mulberry(a) {
+    return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+  }
+
+  function resize() {
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = window.innerWidth; H = window.innerHeight;
+    for (const c of [shelf, stage]) { c.width = W * DPR; c.height = H * DPR; c.style.width = W + 'px'; c.style.height = H + 'px'; }
+    drawShelf();
+    particles.forEach(p => { const [x, y] = randomIdlePos(); p.hx = x; p.hy = y; if (state === 'idle') { p.x = x; p.y = y; } });
+    if (state === 'shown') {
+      shown = layoutFor(shown).map(s => (s.alpha = 1, s));
+    }
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  for (let i = 0; i < IDLE_COUNT; i++) particles.push(makeParticle(true));
+
+  Promise.all(Object.keys(IMGS).map(id => IMGS[id].decode().then(() => { IMGS[id] = trim(IMGS[id]); }).catch(() => {})))
+    .then(() => requestAnimationFrame(frame));
+})();
+</script>
+</body>
+</html>
