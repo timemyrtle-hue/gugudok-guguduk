@@ -1185,15 +1185,14 @@
 
   function shelfIntro() {
     shelfScore = 0; shelfResult = null;
-    // the shelf-picking rounds use different books; each ordering round takes 4 books with different numbers
-    const pool = shuffle(SHELF.books);
-    let next = 0;
+    // the shelf-picking rounds use different books; each ordering round is a different one of the order types
+    const pool = shuffle(SHELF.books), kinds = shuffle(SHELF.orderTypes);
+    let next = 0, nextKind = 0;
     shelfRounds = SHELF.plan.map(type => {
       if (type === 'c') return { type, book: pool[next++ % pool.length] };
-      if (type === 'a') return { type, books: shuffle(SHELF.author.books).slice(0, 4).map(b => ({ ...b, call: SHELF.author.call })) };
-      const seen = new Set(), four = [];
-      for (const b of shuffle(SHELF.books)) if (four.length < 4 && !seen.has(b.call)) { seen.add(b.call); four.push(b); }
-      return { type, books: four };
+      const kind = kinds[nextKind++ % kinds.length];
+      const books = kind.pick ? shuffle(kind.books).slice(0, kind.pick) : kind.books;
+      return { type, kind, books: books.map(b => ({ ...b, call: b.call || kind.call })) };
     });
     drawQuizPose(SHELF.intro.pose);
     // a short KDC explanation and the ten sections, so players know the rules before starting
@@ -1231,7 +1230,7 @@
   function shelfRound(i) {
     const round = shelfRounds[i];
     if (round.type === 'c') return shelfClassify(i, round.book);
-    return shelfOrder(i, round.books, round.type === 'a');
+    return shelfOrder(i, round.books, round.kind);
   }
   function shelfClassify(i, book) {
     drawQuizPose('dok-read');
@@ -1255,11 +1254,12 @@
     });
     showQuizScreen([...shelfHeader(i), make('div', 'quiz-q', '이 책은 어느 칸에 꽂아야 할까?'), card, grid]);
   }
-  function shelfOrder(i, books, byAuthor) {
+  function shelfOrder(i, books, kind) {
     drawQuizPose('dok-books');
-    const sorted = books.slice().sort((a, b) => a.call - b.call || a.mark.localeCompare(b.mark, 'ko'));
+    // call numbers first (813 < 813.6), then author marks in 가나다 order, numbers by value (김12 < 김35)
+    const sorted = books.slice().sort((a, b) => a.call - b.call || a.mark.localeCompare(b.mark, 'ko', { numeric: true }));
     const callNo = s => `${pad3(s.call)} ${s.mark}`;
-    const rule = byAuthor ? '분류기호가 같으면 저자기호를 가나다순으로' : '분류기호(숫자)가 작은 책부터';
+    const rule = kind.rule;
     const row = make('div', 'shelf-row');
     const slots = sorted.map(() => { const s = make('div', 'spine-slot'); row.append(s); return s; });
     const spineFor = (book, k) => {
@@ -1293,9 +1293,8 @@
       });
       pile.append(b);
     });
-    const help = byAuthor
-      ? [make('div', 'quiz-q', SHELF.author.help), make('div', 'quiz-say', SHELF.author.about)]
-      : [make('div', 'quiz-q', SHELF.orderHelp)];
+    const help = [make('div', 'quiz-q', kind.help)];
+    if (kind.about) help.push(make('div', 'quiz-say', kind.about));
     showQuizScreen([...shelfHeader(i), ...help, row, pile]);
   }
   function shelfShowResult() {
