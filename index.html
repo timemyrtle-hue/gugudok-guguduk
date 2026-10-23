@@ -756,7 +756,8 @@
   // mode: 'first' (appears alone), 'join' (twin comes out beside the other), 'chat'
   function reply(topic, key, mode) {
     const r = BY_ID[topic] || BY_ID.other;
-    if (mode === 'chat') return pickFresh(r[key]);
+    // serious topics get no cheerful self-introduction in front
+    if (mode === 'chat' || r.serious) return pickFresh(r[key]);
     if (topic === 'bye' || topic === 'goodnight') return reply('greet', key, mode); // a goodbye as the very first words
     if (mode === 'join') {
       return topic === 'name' ? pickFresh(r.first[key]) : pickFresh(window.REPLY_JOIN[key]) + ' ' + pickFresh(r[key]);
