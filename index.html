@@ -253,7 +253,8 @@
   .hb .face::after { bottom: 18%; }
   .hb:enabled:hover .face { transform: translateY(-6px); }
   .hb.open .face { transform: translateY(-62%); }
-  .hb.wrong .face { box-shadow: 0 0 0 3px #ffb3c1, inset -6px 0 rgba(0,0,0,.14); }
+  /* "miss", not "wrong": the quiz-wide .wrong style would paint the whole slot pink */
+  .hb.miss .face { box-shadow: 0 0 0 3px #ffb3c1, inset -6px 0 rgba(0,0,0,.14); }
   .hb .twin {
     /* inset: auto undoes the page-wide canvas rule (fixed, inset 0) */
     position: absolute; inset: auto; left: 50%; bottom: 75%; z-index: 1; width: calc(var(--bw) * .92);
@@ -1469,7 +1470,7 @@
           hideScore++;
           twin.classList.remove('hidden');
         } else {
-          book.b.classList.add('wrong');
+          book.b.classList.add('miss');
           await sleep(650); if (run !== hideRun) return;
           hidden.b.classList.add('open');
           twin.classList.remove('hidden');
