@@ -1,7 +1,7 @@
 // 구구독 구구덕의 북트럭 숨바꼭질
 // 쌍둥이 중 한 명이 북트럭의 책 뒤에 숨으면 책들이 자리를 바꿔요. 어느 책 뒤에 숨었는지 맞히는 게임이에요.
 // - stages: 단계마다 책 수(books), 자리 바꾸는 횟수(swaps), 한 번 바꾸는 시간(speed, 밀리초가 작을수록 빨라요)
-//   same: true 이면 책 색깔이 모두 같아져서 더 어려워요
+//   colors: 책 색깔 가짓수. 책 수보다 적으면 같은 색 책이 섞이고, 1이면 모두 같은 색이라 가장 어려워요
 // - results: 찾은 횟수(min 이상)에 따라 결과가 나와요
 
 window.HIDE = {
@@ -12,17 +12,19 @@ window.HIDE = {
     start: '숨바꼭질 시작',
   },
   stages: [
-    { books: 3, swaps: 4, speed: 650 },
-    { books: 3, swaps: 6, speed: 520 },
-    { books: 4, swaps: 7, speed: 460 },
-    { books: 4, swaps: 9, speed: 400, same: true },
-    { books: 5, swaps: 11, speed: 360, same: true },
+    { books: 3, swaps: 4, speed: 650, colors: 3 },
+    { books: 3, swaps: 7, speed: 480, colors: 2 },
+    { books: 4, swaps: 9, speed: 430, colors: 2 },
+    { books: 4, swaps: 10, speed: 390, colors: 1 },
+    { books: 5, swaps: 12, speed: 350, colors: 1 },
   ],
   // 숨기 전에 숨는 쌍둥이가 하는 말
   hideLines: {
     dok: ['나 여기 숨는다! 잘 봐~', '탐험가는 숨기도 잘하지! 찾아봐!', '눈 크게 뜨고 따라와!'],
     duk: ['나 여기 숨을게! 잘 찾아 줘~', '분홍 가방까지 꼭꼭 숨길 거야!', '헤헤, 날 찾을 수 있을까?'],
   },
+  // 색깔 가짓수가 처음 줄어드는 단계에서 덧붙이는 말
+  mixColor: '이제 같은 색 책이 섞여 있어! 잘 따라와!',
   sameColor: '이제 책 색깔이 모두 같아져! 더 집중해서 봐!',
   ask: '어느 책 뒤에 숨었을까? 책을 눌러 봐!',
   // 찾았을 때 / 못 찾았을 때 숨은 쌍둥이가 하는 말

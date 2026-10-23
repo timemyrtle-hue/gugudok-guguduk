@@ -1417,7 +1417,10 @@
     const truck = make('div', 'truck'), shelf = make('div', 'truck-shelf'), row = make('div', 'truck-row');
     truck.style.setProperty('--bw', bw + 'px');
     row.style.width = (n * bw + (n - 1) * gap) + 'px';
-    const colors = shuffle(HIDE_COLORS);
+    // stage.colors kinds of colour spread over the books, so same-coloured books get mixed in
+    const kinds = stage.colors || n;
+    const palette = shuffle(HIDE_COLORS).slice(0, kinds);
+    const colors = shuffle(Array.from({ length: n }, (_, k) => palette[k % kinds]));
     const target = (Math.random() * n) | 0;
     let twin = null;
     // pos = which slot the book stands in right now
@@ -1426,7 +1429,7 @@
       b.disabled = true;
       b.setAttribute('aria-label', `${k + 1}번째 책`);
       const face = make('span', 'face');
-      face.style.background = stage.same ? HIDE_COLORS[0] : colors[k];
+      face.style.background = colors[k];
       if (k === target) { twin = twinCanvas(pick(PEEK_POSES[key]), bw * 0.92); b.append(twin); }
       b.append(face);
       b.style.transitionDuration = stage.speed + 'ms';
@@ -1440,11 +1443,15 @@
     wheels.append(make('span'), make('span'));
     truck.append(shelf, wheels);
     const name = CHARS[key].name;
-    const firstSame = stage.same && !(HIDE.stages[i - 1] || {}).same;
-    const status = make('div', 'quiz-q', `${name}: "${pick(HIDE.hideLines[key])}"${firstSame ? ' ' + HIDE.sameColor : ''}`);
+    // a warning on the first stage where same-coloured books appear, and again when all match
+    const prev = HIDE.stages[i - 1];
+    const prevKinds = prev ? (prev.colors || prev.books) : n;
+    const mixed = kinds < n, prevMixed = prev ? prevKinds < prev.books : false;
+    const warn = kinds === 1 && prevKinds > 1 ? HIDE.sameColor : mixed && !prevMixed ? HIDE.mixColor : '';
+    const status = make('div', 'quiz-q', `${name}: "${pick(HIDE.hideLines[key])}"${warn ? ' ' + warn : ''}`);
     showQuizScreen([...hideHeader(i), status, truck]);
 
-    await sleep(firstSame ? 2200 : 1500); if (run !== hideRun) return;
+    await sleep(warn ? 2200 : 1500); if (run !== hideRun) return;
     twin.classList.add('hidden');
     status.textContent = '빙글빙글~ 잘 따라와!';
     await sleep(600); if (run !== hideRun) return;
