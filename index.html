@@ -910,7 +910,27 @@
       hear(text);
     }
   });
+  // the start-screen shadow: the left figure is 구구독, the right one 구구덕
+  function silhouetteKeyAt(x, y) {
+    if (state !== 'idle' || silhouette.hidden || !silhouette.naturalWidth) return null;
+    const box = silhouette.getBoundingClientRect();
+    // object-fit: contain draws the picture centred inside the box
+    const ratio = silhouette.naturalWidth / silhouette.naturalHeight;
+    const w = Math.min(box.width, box.height * ratio), h = w / ratio;
+    const left = box.left + (box.width - w) / 2, top = box.top + (box.height - h) / 2;
+    if (x < left || x > left + w || y < top || y > top + h) return null;
+    return (x - left) / w < 0.5 ? 'dok' : 'duk';
+  }
+  stage.addEventListener('mousemove', e => {
+    stage.style.cursor = silhouetteKeyAt(e.clientX, e.clientY) ? 'pointer' : '';
+  });
   stage.addEventListener('click', e => {
+    const found = silhouetteKeyAt(e.clientX, e.clientY);
+    if (found) {
+      stage.style.cursor = '';
+      summon([found], 'found');
+      return;
+    }
     if (state !== 'shown') return;
     const s = shown.find(s => e.clientX > s.dx && e.clientX < s.dx + s.w && e.clientY > s.y && e.clientY < s.y + s.h);
     if (!s) return;
