@@ -614,11 +614,18 @@
     return [Math.random() < 0.5 ? 'dok' : 'duk'];
   }
 
+  // swear words are hidden behind hearts when the message is echoed on screen
+  const SWEAR_ALL = window.SWEAR_RE ? new RegExp(window.SWEAR_RE.source, 'gi') : null;
+  const maskSwears = t => SWEAR_ALL ? t.replace(SWEAR_ALL, m => '♡'.repeat(Math.min(m.replace(/\s/g, '').length, 3))) : t;
+  let swearCount = 0;
+
   function hear(text) {
     text = text.trim();
     if (!text) return;
-    showHeard(text);
-    const topic = topicOf(text);
+    showHeard(maskSwears(text));
+    let topic = topicOf(text);
+    // from the third swear word on, the twins sound more worried than hurt
+    if (topic === 'swear' && ++swearCount >= 3) topic = 'swearmany';
     if (state === 'idle') {
       if (topic === 'bye') { toast('아직 아무도 나오지 않았어요. 먼저 환영 인사를 건네 볼까요?'); return; }
       summon(whoFor(text), topic);
