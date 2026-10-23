@@ -129,7 +129,58 @@
     opacity: 0; transition: opacity .3s; pointer-events: none; text-align: center;
   }
   #toast.show { opacity: 1; }
+
+  /* ----- 독서 취향 테스트 ----- */
+  #gameBtn {
+    flex: none; height: 52px; padding: 0 18px; border-radius: 26px; cursor: pointer;
+    border: 2px solid rgba(255,255,255,.25); background: rgba(163,92,245,.35); color: #fff;
+    font: inherit; font-size: 17px; white-space: nowrap;
+  }
+  #gameBtn:hover, #gameBtn:focus-visible { background: rgba(163,92,245,.6); outline: none; }
+  #quiz {
+    position: fixed; inset: 0; z-index: 30; padding: 16px;
+    background: rgba(12, 8, 24, .72); backdrop-filter: blur(4px);
+    align-items: center; justify-content: center;
+  }
+  #quiz:not([hidden]) { display: flex; }
+  .quiz-card {
+    position: relative; width: min(480px, 100%); max-height: 100%; overflow-y: auto;
+    background: #fff; color: #3b2a55; border-radius: 24px; padding: 22px 20px 20px;
+    text-align: center; box-shadow: 0 20px 60px rgba(0,0,0,.45);
+  }
+  .quiz-close {
+    position: absolute; top: 10px; right: 10px; width: 36px; height: 36px; border-radius: 50%;
+    border: none; background: #f3ecff; color: #5b3a8a; font-size: 18px; cursor: pointer;
+  }
+  /* the page's full-screen canvas rule must not apply to this small picture */
+  #quiz .quiz-pose { position: static; inset: auto; display: block; margin: 0 auto 6px; }
+  .quiz-pose.pop { animation: quizpop .45s cubic-bezier(.3,1.6,.5,1); }
+  @keyframes quizpop { from { transform: scale(.6); opacity: 0; } to { transform: none; opacity: 1; } }
+  .quiz-card h2 { margin: 4px 0 8px; font-weight: normal; font-size: 24px; color: #7b3fe0; text-wrap: balance; }
+  .quiz-card p { margin: 0 0 14px; font-size: 16px; line-height: 1.55; word-break: keep-all; }
+  .quiz-progress { font-size: 14px; color: #8a76ad; margin-bottom: 6px; }
+  .quiz-bar { height: 8px; border-radius: 4px; background: #efe7fb; overflow: hidden; margin-bottom: 14px; }
+  .quiz-bar span { display: block; height: 100%; background: linear-gradient(90deg, #4cc6ea, #a35cf5); transition: width .3s; }
+  .quiz-q { font-size: 20px; margin: 0 0 14px; word-break: keep-all; }
+  .quiz-options { display: flex; flex-direction: column; gap: 8px; }
+  .quiz-options button, .quiz-actions button {
+    font: inherit; font-size: 16px; cursor: pointer; border-radius: 14px; padding: 12px 14px;
+    border: 2px solid transparent; background: #f3ecff; color: #3b2a55; word-break: keep-all;
+  }
+  .quiz-options button:hover, .quiz-options button:focus-visible { border-color: #a35cf5; outline: none; }
+  .quiz-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 14px; }
+  .quiz-actions .primary { background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff; }
+  .quiz-label { font-size: 14px; color: #8a76ad; }
+  .quiz-emoji { font-size: 40px; line-height: 1; }
+  .quiz-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 0 0 14px; }
+  .quiz-chips span { background: #e9f8fd; color: #1f7fa3; border-radius: 999px; padding: 4px 12px; font-size: 14px; }
+  .quiz-say { background: #f7f2ff; border-radius: 16px; padding: 12px 14px; text-align: left; font-size: 15px; line-height: 1.5; word-break: keep-all; }
+  .quiz-say b { color: #8b3ff0; font-weight: normal; display: block; font-size: 13px; }
+  .quiz-hint { font-size: 13px; color: #8a76ad; margin-top: 10px; }
+
   @media (max-width: 600px) {
+    #gameBtn { height: 46px; width: 46px; padding: 0; font-size: 20px; }
+    #gameBtn .label { display: none; }
     #send { padding: 0 14px; }
     #heard { bottom: 100px; font-size: 16px; }
     .bubble { padding: 10px 12px; font-size: 14px; border-radius: 18px; }
@@ -151,7 +202,16 @@
 <div id="heard"></div>
 <div id="toast"></div>
 
+<div id="quiz" hidden role="dialog" aria-modal="true" aria-label="구구덕의 독서 취향 테스트">
+  <div class="quiz-card">
+    <button class="quiz-close" type="button" aria-label="닫기">✕</button>
+    <canvas class="quiz-pose"></canvas>
+    <div class="quiz-body"></div>
+  </div>
+</div>
+
 <div id="controls">
+  <button id="gameBtn" type="button" title="구구덕의 독서 취향 테스트">🎮<span class="label"> 취향 테스트</span></button>
   <form id="form">
     <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
     <button id="send" type="submit">말하기</button>
@@ -160,6 +220,7 @@
 
 <script src="images/chars.js"></script>
 <script src="replies.js"></script>
+<script src="quiz.js"></script>
 <script>
 (() => {
   const shelf = document.getElementById('shelf');
@@ -878,6 +939,103 @@
   window.addEventListener('resize', resize);
   resize();
   for (let i = 0; i < IDLE_COUNT; i++) particles.push(makeParticle(true));
+
+  // ---------- reading-taste test (questions and results live in quiz.js) ----------
+  const QUIZ = window.QUIZ;
+  const quizEl = document.getElementById('quiz');
+  const quizBody = quizEl.querySelector('.quiz-body');
+  const quizPose = quizEl.querySelector('.quiz-pose');
+  const gameBtn = document.getElementById('gameBtn');
+  let quizScore = {}, quizResult = null;
+
+  function drawQuizPose(id) {
+    const img = IMGS[id];
+    if (!img || !img.width) { quizPose.hidden = true; return; }
+    quizPose.hidden = false;
+    const r = Math.min(2, window.devicePixelRatio || 1), ch = 120, cw = Math.round(ch * img.width / img.height);
+    quizPose.width = cw * r; quizPose.height = ch * r;
+    quizPose.style.width = cw + 'px'; quizPose.style.height = ch + 'px';
+    const x = quizPose.getContext('2d');
+    x.imageSmoothingQuality = 'high';
+    x.drawImage(img, 0, 0, quizPose.width, quizPose.height);
+    quizPose.classList.remove('pop'); void quizPose.offsetWidth; quizPose.classList.add('pop');
+  }
+  function make(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function button(text, cls, onClick) {
+    const b = make('button', cls, text);
+    b.type = 'button';
+    b.addEventListener('click', onClick);
+    return b;
+  }
+  function showQuizScreen(nodes) {
+    quizBody.replaceChildren(...nodes);
+    quizEl.querySelector('.quiz-card').scrollTop = 0;
+    const first = quizBody.querySelector('button');
+    if (first) first.focus({ preventScroll: true });
+  }
+
+  function quizIntro() {
+    quizScore = {}; quizResult = null;
+    drawQuizPose(QUIZ.intro.pose);
+    const actions = make('div', 'quiz-actions');
+    actions.append(button(QUIZ.intro.start, 'primary', () => quizQuestion(0)));
+    showQuizScreen([make('h2', null, QUIZ.intro.title), make('p', null, QUIZ.intro.text), actions]);
+  }
+  function quizQuestion(i) {
+    const item = QUIZ.questions[i], total = QUIZ.questions.length;
+    drawQuizPose(item.pose);
+    const bar = make('div', 'quiz-bar'), fill = make('span');
+    fill.style.width = (i / total * 100) + '%';
+    bar.append(fill);
+    const list = make('div', 'quiz-options');
+    // the answers come in a new order each time
+    item.options.slice().sort(() => Math.random() - 0.5).forEach(o => list.append(button(o.text, null, () => {
+      quizScore[o.type] = (quizScore[o.type] || 0) + 1;
+      if (i + 1 < total) quizQuestion(i + 1); else quizShowResult();
+    })));
+    showQuizScreen([make('div', 'quiz-progress', `질문 ${i + 1} / ${total}`), bar, make('div', 'quiz-q', item.q), list]);
+  }
+  function quizShowResult() {
+    const best = Math.max(...Object.values(quizScore));
+    const tied = Object.keys(quizScore).filter(k => quizScore[k] === best);
+    const res = quizResult = QUIZ.results[pick(tied)];
+    drawQuizPose(res.pose);
+    const chips = make('div', 'quiz-chips');
+    res.genres.forEach(g => chips.append(make('span', null, g)));
+    const sayBox = make('div', 'quiz-say');
+    sayBox.append(make('b', null, '구구덕'), document.createTextNode(QUIZ.outro));
+    const actions = make('div', 'quiz-actions');
+    actions.append(button('다시 하기', null, quizIntro), button('닫기', 'primary', closeQuiz));
+    showQuizScreen([
+      make('div', 'quiz-label', '너의 독서 취향은'),
+      make('div', 'quiz-emoji', res.emoji),
+      make('h2', null, res.name),
+      make('p', null, res.text),
+      make('div', 'quiz-label', '어울리는 장르'),
+      chips, sayBox, actions,
+      make('div', 'quiz-hint', '결과 화면을 캡처해서 친구에게 보여 줘!'),
+    ]);
+  }
+  function openQuiz() {
+    quizEl.hidden = false;
+    quizIntro();
+  }
+  function closeQuiz() {
+    quizEl.hidden = true;
+    // if 구구덕 is out, it congratulates the result in the scene too
+    if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 너! 너의 취향을 찾을 수 있게 앞으로 노력할게!`);
+    quizResult = null;
+    gameBtn.focus();
+  }
+  gameBtn.addEventListener('click', openQuiz);
+  quizEl.querySelector('.quiz-close').addEventListener('click', closeQuiz);
+  quizEl.addEventListener('click', e => { if (e.target === quizEl) closeQuiz(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !quizEl.hidden) closeQuiz(); });
 
   Promise.all(Object.keys(IMGS).map(id => IMGS[id].decode().then(() => { IMGS[id] = trim(IMGS[id]); }).catch(() => {})))
     .then(() => requestAnimationFrame(frame));
