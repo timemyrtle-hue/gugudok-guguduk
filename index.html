@@ -1086,6 +1086,7 @@
     let next = 0;
     shelfRounds = SHELF.plan.map(type => {
       if (type === 'c') return { type, book: pool[next++ % pool.length] };
+      if (type === 'a') return { type, books: shuffle(SHELF.author.books).slice(0, 4).map(b => ({ ...b, call: SHELF.author.call })) };
       const seen = new Set(), four = [];
       for (const b of shuffle(SHELF.books)) if (four.length < 4 && !seen.has(b.call)) { seen.add(b.call); four.push(b); }
       return { type, books: four };
@@ -1126,7 +1127,7 @@
   function shelfRound(i) {
     const round = shelfRounds[i];
     if (round.type === 'c') return shelfClassify(i, round.book);
-    return shelfOrder(i, round.books);
+    return shelfOrder(i, round.books, round.type === 'a');
   }
   function shelfClassify(i, book) {
     drawQuizPose('dok-read');
@@ -1150,9 +1151,11 @@
     });
     showQuizScreen([...shelfHeader(i), make('div', 'quiz-q', '이 책은 어느 칸에 꽂아야 할까?'), card, grid]);
   }
-  function shelfOrder(i, books) {
+  function shelfOrder(i, books, byAuthor) {
     drawQuizPose('dok-books');
-    const sorted = books.slice().sort((a, b) => a.call - b.call);
+    const sorted = books.slice().sort((a, b) => a.call - b.call || a.mark.localeCompare(b.mark, 'ko'));
+    const callNo = s => `${pad3(s.call)} ${s.mark}`;
+    const rule = byAuthor ? '분류기호가 같으면 저자기호를 가나다순으로' : '분류기호(숫자)가 작은 책부터';
     const row = make('div', 'shelf-row');
     const slots = sorted.map(() => { const s = make('div', 'spine-slot'); row.append(s); return s; });
     const spineFor = (book, k) => {
@@ -1173,7 +1176,7 @@
           placed++;
           if (placed === sorted.length) {
             done = true; shelfScore++;
-            shelfFeedback(i, true, '작은 숫자부터 차례대로 꽂으면 돼!');
+            shelfFeedback(i, true, `${rule} 꽂으면 돼!`);
           }
           return;
         }
@@ -1182,11 +1185,14 @@
         b.classList.add('wrong');
         pile.querySelectorAll('button').forEach(x => { x.disabled = true; });
         sorted.forEach((s, n) => slots[n].replaceChildren(spineFor(s, books.indexOf(s))));
-        shelfFeedback(i, false, `작은 숫자부터: ${sorted.map(s => pad3(s.call)).join(' → ')}`);
+        shelfFeedback(i, false, `${rule}: ${sorted.map(callNo).join(' → ')}`);
       });
       pile.append(b);
     });
-    showQuizScreen([...shelfHeader(i), make('div', 'quiz-q', SHELF.orderHelp), row, pile]);
+    const help = byAuthor
+      ? [make('div', 'quiz-q', SHELF.author.help), make('div', 'quiz-say', SHELF.author.about)]
+      : [make('div', 'quiz-q', SHELF.orderHelp)];
+    showQuizScreen([...shelfHeader(i), ...help, row, pile]);
   }
   function shelfShowResult() {
     const res = shelfResult = SHELF.results.find(r => shelfScore >= r.min);
