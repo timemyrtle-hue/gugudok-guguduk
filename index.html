@@ -1218,7 +1218,7 @@
     quizEl.hidden = true;
     // the twin who hosted the game cheers the result in the scene too
     if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 너! 너의 취향을 찾을 수 있게 앞으로 노력할게!`);
-    if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${shelfResult.name}! ${shelfScore}권이나 제자리에 꽂았어. 다음에도 같이 정리하자!`);
+    if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${shelfScore}권이나 제자리에 꽂았어! ${shelfResult.name}. 다음에도 같이 정리하자!`);
     quizResult = null; shelfResult = null;
     gameBtn.focus();
   }
