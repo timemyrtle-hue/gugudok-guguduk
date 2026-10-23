@@ -81,6 +81,13 @@
     border: 12px solid transparent; border-bottom: 0; border-top-color: #fff;
   }
   .bubble .who { display: block; font-size: .8em; margin-bottom: 2px; }
+  /* "같이 게임할래?" yes / no buttons inside a bubble */
+  .bubble .invite { display: flex; gap: 8px; margin-top: 8px; }
+  .bubble .invite button {
+    pointer-events: auto; flex: 1; font: inherit; font-size: .9em; cursor: pointer;
+    padding: 6px 16px; border-radius: 999px; border: 2px solid #c9b3f5; background: #fff; color: #5b3b99;
+  }
+  .bubble .invite button.yes { background: #8b5cf6; border-color: #8b5cf6; color: #fff; }
   /* sideways phone: the bubble sits beside its character instead of above it */
   .bubble.side { transform: scale(.6); transform-origin: left top; }
   .bubble.side.show { transform: none; }
@@ -618,6 +625,8 @@
   let bubbles = [];
   function say(key, text) {
     if (!anchorOf(key)) return;
+    // new words over the invitation take its buttons away, so it is not asked again
+    if (invite === 'open' && key === inviteKey) invite = 'done';
     let b = bubbles.find(x => x.key === key);
     if (!b) {
       const el = document.createElement('div');
@@ -731,19 +740,64 @@
   const maskSwears = t => SWEAR_ALL ? t.replace(SWEAR_ALL, m => '♡'.repeat(Math.min(m.replace(/\s/g, '').length, 3))) : t;
   let swearCount = 0;
 
+  // after 6–8 messages one twin asks once "같이 게임할래?" with yes / no buttons
+  // invite: 'later' (not asked yet), 'open' (waiting for an answer), 'done' (never again)
+  let talks = 0, invite = 'later', inviteKey = null;
+  const inviteAt = 6 + ((Math.random() * 3) | 0);
+  const YES_RE = /^\s*(응|어|예|네|넵|넹|좋아|좋지|그래|ㅇㅇ|ㅇㅋ|오케이|콜|하자|할래|할게|고고)/;
+  const NO_RE = /^\s*(아니|아뇨|싫어|안\s*해|안\s*할|노|ㄴㄴ|다음에|나중에|됐어)/;
+  function askGame() {
+    if (invite !== 'later' || state !== 'shown' || !quizEl.hidden) return;
+    const keys = ['dok', 'duk'].filter(isOut);
+    if (!keys.length) return;
+    inviteKey = pick(keys);
+    say(inviteKey, '우리 같이 게임할래? 🎮');
+    invite = 'open';
+    const b = bubbles.find(x => x.key === inviteKey);
+    const row = document.createElement('div');
+    row.className = 'invite';
+    const yes = document.createElement('button');
+    yes.className = 'yes'; yes.textContent = '예';
+    yes.addEventListener('click', () => answerGame(true));
+    const no = document.createElement('button');
+    no.textContent = '아니요';
+    no.addEventListener('click', () => answerGame(false));
+    row.append(yes, no);
+    b.el.append(row);
+    positionBubbles();
+  }
+  function answerGame(yes) {
+    if (invite !== 'open') return;
+    invite = 'done';
+    if (yes) {
+      say(inviteKey, '신난다! 어떤 게임부터 해 볼까?');
+      setTimeout(openQuiz, 700);
+    } else {
+      say(inviteKey, '알겠어! 하고 싶어지면 언제든 🎮 게임 버튼을 눌러 줘.');
+    }
+  }
+
   function hear(text) {
     text = text.trim();
     if (!text) return;
     showHeard(maskSwears(text));
+    // a typed answer to "같이 게임할래?" works like the buttons; anything else lets it pass
+    if (invite === 'open') {
+      if (YES_RE.test(text)) return answerGame(true);
+      if (NO_RE.test(text)) return answerGame(false);
+      invite = 'done';
+    }
     let topic = topicOf(text);
     // from the third swear word on, the twins sound more worried than hurt
     if (topic === 'swear' && ++swearCount >= 3) topic = 'swearmany';
     if (state === 'idle') {
       if (topic === 'bye') { toast('아직 아무도 나오지 않았어요. 먼저 환영 인사를 건네 볼까요?'); return; }
+      talks++;
       summon(whoFor(text), topic);
       return;
     }
     if (state !== 'shown') return;
+    talks++;
     // talking to one twin again brings the other out of the dust
     if (!isOut('dok') || !isOut('duk')) {
       summon(['dok', 'duk'], topic);
@@ -753,6 +807,8 @@
     const keys = named ? whoFor(text) : ['dok', 'duk'];
     repose(keys);
     keys.forEach((k, i) => setTimeout(() => say(k, reply(topic, k, 'chat')), i * 1400));
+    // swear words get no invitation; it waits for the next friendly message
+    if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, keys.length * 1400 + 1600);
   }
 
   // with both twins out, each new message changes the picture: sometimes the duo
@@ -1229,6 +1285,8 @@
     showQuizScreen([make('h2', null, '구구독 구구덕 게임'), make('p', null, '어떤 게임을 해 볼까?'), picks]);
   }
   function openQuiz() {
+    // someone who found the games already needs no invitation
+    if (invite === 'later') invite = 'done';
     quizEl.hidden = false;
     gamesMenu();
   }
