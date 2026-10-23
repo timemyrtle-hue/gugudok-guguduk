@@ -177,6 +177,53 @@
   .quiz-say { background: #f7f2ff; border-radius: 16px; padding: 12px 14px; text-align: left; font-size: 15px; line-height: 1.5; word-break: keep-all; }
   .quiz-say b { color: #8b3ff0; font-weight: normal; display: block; font-size: 13px; }
   .quiz-hint { font-size: 13px; color: #8a76ad; margin-top: 10px; }
+  .quiz-card button:disabled { cursor: default; }
+
+  /* ----- 게임 고르기 ----- */
+  .game-picks { display: flex; flex-direction: column; gap: 10px; }
+  .game-pick {
+    display: flex; gap: 12px; align-items: center; text-align: left; cursor: pointer;
+    padding: 14px; border-radius: 16px; border: 2px solid transparent; background: #f3ecff;
+    font: inherit; color: #3b2a55;
+  }
+  .game-pick:hover, .game-pick:focus-visible { border-color: #a35cf5; outline: none; }
+  .game-pick .em { font-size: 32px; flex: none; }
+  .game-pick b { display: block; font-weight: normal; font-size: 18px; color: #7b3fe0; }
+  .game-pick small { font-size: 14px; color: #6f5c92; word-break: keep-all; }
+
+  /* ----- 구구독의 책장 정리 대작전 ----- */
+  .shelf-book {
+    background: linear-gradient(#fff9ee, #ffefd2); border-radius: 14px; padding: 12px 14px;
+    margin-bottom: 12px; border-left: 8px solid #c08a3e; text-align: left;
+  }
+  .shelf-book b { display: block; font-weight: normal; font-size: 20px; color: #7a4b12; }
+  .shelf-book small { font-size: 14px; color: #8a6a3a; }
+  .shelf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .shelf-grid button {
+    font: inherit; font-size: 15px; padding: 10px 6px; border-radius: 12px; cursor: pointer;
+    border: 2px solid transparent; background: #e9f8fd; color: #1f5f7a;
+  }
+  .shelf-grid button:hover:not(:disabled), .shelf-grid button:focus-visible { border-color: #4cc6ea; outline: none; }
+  .quiz-card .right { background: #d9f7e6; border-color: #2fb36b; color: #16683d; }
+  .quiz-card .wrong { background: #ffe1e6; border-color: #e5536f; color: #9b1d37; animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+  .shelf-row {
+    display: flex; gap: 6px; justify-content: center; padding: 8px 6px 6px; margin-bottom: 12px;
+    border-radius: 12px 12px 4px 4px; background: #f6efe4; border-bottom: 8px solid #c08a3e;
+  }
+  .spine-slot { width: 64px; height: 92px; border: 2px dashed #d8c7a6; border-radius: 8px; }
+  .spines { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-bottom: 4px; }
+  .spine {
+    width: 64px; height: 92px; border-radius: 8px; border: 2px solid transparent; color: #fff; cursor: pointer;
+    font: inherit; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 4px; box-shadow: inset -5px 0 rgba(0,0,0,.15);
+  }
+  .spine .no { font-size: 19px; }
+  .spine .mk { font-size: 13px; opacity: .9; }
+  .spine .tt { font-size: 10px; line-height: 1.2; margin-top: 3px; word-break: keep-all; }
+  .spine:disabled { opacity: .3; }
+  .spine-slot .spine { opacity: 1; cursor: default; }
+  .quiz-card .spine.wrong { color: #fff; opacity: 1; border-color: #e5536f; box-shadow: 0 0 0 3px #ffb3c1; }
 
   @media (max-width: 600px) {
     #gameBtn { height: 46px; width: 46px; padding: 0; font-size: 20px; }
@@ -202,7 +249,7 @@
 <div id="heard"></div>
 <div id="toast"></div>
 
-<div id="quiz" hidden role="dialog" aria-modal="true" aria-label="구구덕의 독서 취향 테스트">
+<div id="quiz" hidden role="dialog" aria-modal="true" aria-label="구구독 구구덕 게임">
   <div class="quiz-card">
     <button class="quiz-close" type="button" aria-label="닫기">✕</button>
     <canvas class="quiz-pose"></canvas>
@@ -211,7 +258,7 @@
 </div>
 
 <div id="controls">
-  <button id="gameBtn" type="button" title="구구덕의 독서 취향 테스트">🎮<span class="label"> 취향 테스트</span></button>
+  <button id="gameBtn" type="button" title="구구독 구구덕 게임">🎮<span class="label"> 게임</span></button>
   <form id="form">
     <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
     <button id="send" type="submit">말하기</button>
@@ -221,6 +268,7 @@
 <script src="images/chars.js"></script>
 <script src="replies.js"></script>
 <script src="quiz.js"></script>
+<script src="shelf.js"></script>
 <script>
 (() => {
   const shelf = document.getElementById('shelf');
@@ -1010,7 +1058,7 @@
     const sayBox = make('div', 'quiz-say');
     sayBox.append(make('b', null, '구구덕'), document.createTextNode(QUIZ.outro));
     const actions = make('div', 'quiz-actions');
-    actions.append(button('다시 하기', null, quizIntro), button('닫기', 'primary', closeQuiz));
+    actions.append(button('다시 하기', null, quizIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
     showQuizScreen([
       make('div', 'quiz-label', '너의 독서 취향은'),
       make('div', 'quiz-emoji', res.emoji),
@@ -1021,15 +1069,157 @@
       make('div', 'quiz-hint', '결과 화면을 캡처해서 친구에게 보여 줘!'),
     ]);
   }
+  // ---------- shelving game (books and sections live in shelf.js) ----------
+  const SHELF = window.SHELF;
+  const pad3 = n => String(n).padStart(3, '0');
+  const shuffle = a => a.slice().sort(() => Math.random() - 0.5);
+  const SPINE_COLORS = ['#4d7fd6', '#e0913a', '#3fa58a', '#b5566a'];
+  let shelfRounds = [], shelfScore = 0, shelfResult = null;
+
+  function shelfIntro() {
+    shelfScore = 0; shelfResult = null;
+    // the shelf-picking rounds use different books; each ordering round takes 4 books with different numbers
+    const pool = shuffle(SHELF.books);
+    let next = 0;
+    shelfRounds = SHELF.plan.map(type => {
+      if (type === 'c') return { type, book: pool[next++ % pool.length] };
+      const seen = new Set(), four = [];
+      for (const b of shuffle(SHELF.books)) if (four.length < 4 && !seen.has(b.call)) { seen.add(b.call); four.push(b); }
+      return { type, books: four };
+    });
+    drawQuizPose(SHELF.intro.pose);
+    const actions = make('div', 'quiz-actions');
+    actions.append(button(SHELF.intro.start, 'primary', () => shelfRound(0)));
+    showQuizScreen([make('h2', null, SHELF.intro.title), make('p', null, SHELF.intro.text), actions]);
+  }
+  function shelfHeader(i) {
+    const total = shelfRounds.length;
+    const bar = make('div', 'quiz-bar'), fill = make('span');
+    fill.style.width = (i / total * 100) + '%';
+    bar.append(fill);
+    return [make('div', 'quiz-progress', `문제 ${i + 1} / ${total}  ·  맞힌 개수 ${shelfScore}`), bar];
+  }
+  // 구구독's comment after each round, plus the button to move on
+  function shelfFeedback(i, ok, detail) {
+    const box = make('div', 'quiz-say');
+    box.append(make('b', null, '구구독'), document.createTextNode(`${pick(ok ? SHELF.right : SHELF.wrong)} ${detail}`));
+    const actions = make('div', 'quiz-actions');
+    const last = i + 1 >= shelfRounds.length;
+    const nextBtn = button(last ? '결과 보기' : '다음 문제', 'primary', () => last ? shelfShowResult() : shelfRound(i + 1));
+    actions.append(nextBtn);
+    quizBody.append(box, actions);
+    nextBtn.focus({ preventScroll: true });
+    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+  function shelfRound(i) {
+    const round = shelfRounds[i];
+    if (round.type === 'c') return shelfClassify(i, round.book);
+    return shelfOrder(i, round.books);
+  }
+  function shelfClassify(i, book) {
+    drawQuizPose('dok-read');
+    const card = make('div', 'shelf-book');
+    card.append(make('b', null, book.title), make('small', null, book.about));
+    const grid = make('div', 'shelf-grid');
+    SHELF.sections.forEach(sec => {
+      const b = button(`${sec.code} ${sec.name}`, null, () => {
+        const ok = sec.code === book.cls;
+        if (ok) shelfScore++;
+        grid.querySelectorAll('button').forEach(x => {
+          x.disabled = true;
+          if (x.dataset.code === book.cls) x.classList.add('right');
+        });
+        if (!ok) b.classList.add('wrong');
+        const right = SHELF.sections.find(s => s.code === book.cls);
+        shelfFeedback(i, ok, `「${book.title}」은(는) ${right.code} ${right.name} 칸이야. (${right.hint})`);
+      });
+      b.dataset.code = sec.code;
+      grid.append(b);
+    });
+    showQuizScreen([...shelfHeader(i), make('div', 'quiz-q', '이 책은 어느 칸에 꽂아야 할까?'), card, grid]);
+  }
+  function shelfOrder(i, books) {
+    drawQuizPose('dok-books');
+    const sorted = books.slice().sort((a, b) => a.call - b.call);
+    const row = make('div', 'shelf-row');
+    const slots = sorted.map(() => { const s = make('div', 'spine-slot'); row.append(s); return s; });
+    const spineFor = (book, k) => {
+      const b = button('', 'spine', null);
+      b.style.background = SPINE_COLORS[k % SPINE_COLORS.length];
+      b.append(make('span', 'no', pad3(book.call)), make('span', 'mk', book.mark), make('span', 'tt', book.title));
+      return b;
+    };
+    const pile = make('div', 'spines');
+    let placed = 0, done = false;
+    shuffle(books).forEach((book, k) => {
+      const b = spineFor(book, k);
+      b.addEventListener('click', () => {
+        if (done) return;
+        if (book === sorted[placed]) {
+          b.disabled = true;
+          slots[placed].replaceChildren(spineFor(book, k));
+          placed++;
+          if (placed === sorted.length) {
+            done = true; shelfScore++;
+            shelfFeedback(i, true, '작은 숫자부터 차례대로 꽂으면 돼!');
+          }
+          return;
+        }
+        // a wrong pick: show the right order on the shelf
+        done = true;
+        b.classList.add('wrong');
+        pile.querySelectorAll('button').forEach(x => { x.disabled = true; });
+        sorted.forEach((s, n) => slots[n].replaceChildren(spineFor(s, books.indexOf(s))));
+        shelfFeedback(i, false, `작은 숫자부터: ${sorted.map(s => pad3(s.call)).join(' → ')}`);
+      });
+      pile.append(b);
+    });
+    showQuizScreen([...shelfHeader(i), make('div', 'quiz-q', SHELF.orderHelp), row, pile]);
+  }
+  function shelfShowResult() {
+    const res = shelfResult = SHELF.results.find(r => shelfScore >= r.min);
+    drawQuizPose(res.pose);
+    const box = make('div', 'quiz-say');
+    box.append(make('b', null, '구구독'), document.createTextNode(SHELF.outro));
+    const actions = make('div', 'quiz-actions');
+    actions.append(button('다시 하기', null, shelfIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
+    showQuizScreen([
+      make('div', 'quiz-label', `${shelfRounds.length}문제 중 ${shelfScore}개 정답!`),
+      make('div', 'quiz-emoji', res.emoji),
+      make('h2', null, res.name),
+      make('p', null, res.text),
+      box, actions,
+    ]);
+  }
+
+  // ---------- game menu ----------
+  function gamesMenu() {
+    quizResult = null; shelfResult = null;
+    drawQuizPose('duo-stand');
+    const picks = make('div', 'game-picks');
+    const pickBtn = (em, title, desc, go) => {
+      const b = button('', 'game-pick', go);
+      const txt = make('span');
+      txt.append(make('b', null, title), make('small', null, desc));
+      b.append(make('span', 'em', em), txt);
+      return b;
+    };
+    picks.append(
+      pickBtn('💜', QUIZ.intro.title, '질문 10개로 알아보는 나의 독서 취향', quizIntro),
+      pickBtn('📚', SHELF.intro.title, '책을 알맞은 분류 칸에 꽂아 보는 퀴즈', shelfIntro),
+    );
+    showQuizScreen([make('h2', null, '구구독 구구덕 게임'), make('p', null, '어떤 게임을 해 볼까?'), picks]);
+  }
   function openQuiz() {
     quizEl.hidden = false;
-    quizIntro();
+    gamesMenu();
   }
   function closeQuiz() {
     quizEl.hidden = true;
-    // if 구구덕 is out, it congratulates the result in the scene too
+    // the twin who hosted the game cheers the result in the scene too
     if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 너! 너의 취향을 찾을 수 있게 앞으로 노력할게!`);
-    quizResult = null;
+    if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${shelfResult.name}! ${shelfScore}권이나 제자리에 꽂았어. 다음에도 같이 정리하자!`);
+    quizResult = null; shelfResult = null;
     gameBtn.focus();
   }
   gameBtn.addEventListener('click', openQuiz);
