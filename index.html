@@ -711,6 +711,7 @@
   const REPLIES = window.REPLIES;
   const BY_ID = Object.fromEntries(REPLIES.map(r => [r.id, r]));
   BY_ID.other = window.REPLY_OTHER;
+  BY_ID.unsure = window.REPLY_UNSURE;
   BY_ID.poke = window.REPLY_POKE;
   // mode: 'first' (appears alone), 'join' (twin comes out beside the other), 'chat'
   function reply(topic, key, mode) {
@@ -724,7 +725,9 @@
   }
   function topicOf(t) {
     const hit = REPLIES.find(r => r.match.test(t));
-    return hit ? hit.id : 'other';
+    if (hit) return hit.id;
+    // nothing expected: a question (ends in ?) is a surprise, anything else is "not sure yet"
+    return /[?？][!.~ㅎㅋ\s]*$/.test(t) ? 'other' : 'unsure';
   }
   function whoFor(t) {
     const dok = /구구독|구독|구구톡|독이/.test(t);
