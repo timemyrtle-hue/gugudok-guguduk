@@ -69,22 +69,19 @@
   }
   #hint .line2 {
     margin-top: 6px; font-size: clamp(32px, 5.2vw, 62px); line-height: 1.25; letter-spacing: 2px; text-wrap: balance;
-    color: #fff6e3; animation: rise .8s .25s ease-out both, glow 3s 1s ease-in-out infinite;
+    color: #fff6e3; animation: rise .8s .25s ease-out both, glow 5s 1s ease-in-out infinite;
   }
-  /* each word stays whole on a line; its letters bob one after another */
+  /* each word stays whole on a line */
   #hint .word { display: inline-block; white-space: nowrap; }
-  #hint .wave > span { display: inline-block; animation: wave 2.6s ease-in-out infinite; animation-delay: calc(var(--i) * 90ms); }
   #hint .dok { color: var(--dok); }
   #hint .duk { color: var(--duk); }
-  #hint .spark { display: inline-block; font-size: .7em; animation: twinkle 1.8s ease-in-out infinite; }
-  #hint .spark.r { animation-delay: .9s; }
+  #hint .spark { display: inline-block; font-size: .7em; }
   @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
-  @keyframes wave { 0%, 60%, 100% { transform: none; } 30% { transform: translateY(-8px); } }
+  /* a slow, soft glow is the only movement once the words are in */
   @keyframes glow {
-    0%, 100% { text-shadow: 0 2px 0 rgba(0,0,0,.25), 0 0 14px rgba(255, 220, 160, .35); }
-    50% { text-shadow: 0 2px 0 rgba(0,0,0,.25), 0 0 26px rgba(255, 225, 170, .8), 0 0 46px rgba(180, 150, 255, .45); }
+    0%, 100% { text-shadow: 0 2px 0 rgba(0,0,0,.25), 0 0 14px rgba(255, 220, 160, .3); }
+    50% { text-shadow: 0 2px 0 rgba(0,0,0,.25), 0 0 22px rgba(255, 225, 170, .55); }
   }
-  @keyframes twinkle { 50% { transform: scale(.6) rotate(20deg); opacity: .4; } }
 
   .bubble {
     position: fixed; z-index: 4; width: max-content; max-width: 400px;
@@ -277,7 +274,7 @@
 
 <div id="hint">
   <div class="line1">구미도서관 청소년 공간을 대표하는</div>
-  <div class="line2"><span class="spark">✨</span> <span class="word"><span class="wave dok">구구독</span></span> <span class="word"><span class="wave duk">구구덕</span><span class="wave">을</span></span> <span class="word"><span class="wave">환영해</span></span> <span class="word"><span class="wave">주세요</span></span> <span class="spark r">✨</span></div>
+  <div class="line2"><span class="spark">✨</span> <span class="word dok">구구독</span> <span class="word"><span class="duk">구구덕</span>을</span> <span class="word">환영해</span> <span class="word">주세요</span> <span class="spark r">✨</span></div>
 </div>
 <div id="heard"></div>
 <div id="toast"></div>
@@ -327,19 +324,6 @@
       el.appendChild(s);
     }
   });
-  // the welcome line's letters bob in a wave, one after another
-  let waveIndex = 0;
-  hint.querySelectorAll('.wave').forEach(el => {
-    const text = el.textContent;
-    el.textContent = '';
-    for (const ch of text) {
-      const s = document.createElement('span');
-      s.textContent = ch;
-      s.style.setProperty('--i', waveIndex++);
-      el.appendChild(s);
-    }
-  });
-
   let W = 0, H = 0, DPR = 1;
   const DUST = [255, 236, 200];
   const IDLE_COUNT = 420;
