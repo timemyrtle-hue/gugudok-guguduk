@@ -198,6 +198,9 @@
   }
   .shelf-book b { display: block; font-weight: normal; font-size: 20px; color: #7a4b12; }
   .shelf-book small { font-size: 14px; color: #8a6a3a; }
+  .kdc-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px 8px; margin-top: 10px; text-align: left; font-size: 14px; }
+  .kdc-list span { background: #e9f8fd; color: #1f5f7a; border-radius: 8px; padding: 5px 10px; }
+  .kdc-list b { font-weight: normal; color: #1f7fa3; }
   .shelf-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
   .shelf-grid button {
     font: inherit; font-size: 15px; padding: 10px 6px; border-radius: 12px; cursor: pointer;
@@ -1088,9 +1091,18 @@
       return { type, books: four };
     });
     drawQuizPose(SHELF.intro.pose);
+    // a short KDC explanation and the ten sections, so players know the rules before starting
+    const kdc = make('div', 'quiz-say');
+    kdc.append(make('b', null, 'KDC가 뭐야?'), document.createTextNode(SHELF.intro.kdc));
+    const list = make('div', 'kdc-list');
+    SHELF.sections.forEach(sec => {
+      const item = make('span');
+      item.append(make('b', null, sec.code), document.createTextNode(' ' + sec.name));
+      list.append(item);
+    });
     const actions = make('div', 'quiz-actions');
     actions.append(button(SHELF.intro.start, 'primary', () => shelfRound(0)));
-    showQuizScreen([make('h2', null, SHELF.intro.title), make('p', null, SHELF.intro.text), actions]);
+    showQuizScreen([make('h2', null, SHELF.intro.title), make('p', null, SHELF.intro.text), kdc, list, actions]);
   }
   function shelfHeader(i) {
     const total = shelfRounds.length;
