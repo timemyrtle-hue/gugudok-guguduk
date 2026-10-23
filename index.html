@@ -220,7 +220,8 @@
     font: inherit; color: #3b2a55;
   }
   .game-pick:hover, .game-pick:focus-visible { border-color: #a35cf5; outline: none; }
-  .game-pick .em { font-size: 32px; flex: none; }
+  .game-pick .em { font-size: 32px; flex: none; width: 40px; text-align: center; }
+  .game-pick .em img { display: block; height: 44px; margin: 0 auto; }
   .game-pick b { display: block; font-weight: normal; font-size: 18px; color: #7b3fe0; }
   .game-pick small { font-size: 14px; color: #6f5c92; word-break: keep-all; }
 
@@ -1515,13 +1516,25 @@
       const b = button('', 'game-pick', go);
       const txt = make('span');
       txt.append(make('b', null, title), make('small', null, desc));
-      b.append(make('span', 'em', em), txt);
+      // em is an emoji, or a picture id (the book-cart art: emoji only has a shopping cart)
+      const ready = IMGS[em] && IMGS[em].width;
+      // 🙈 stands in for the picture if it has not loaded yet
+      const icon = make('span', 'em', IMGS[em] ? (ready ? null : '🙈') : em);
+      if (ready) {
+        const c = IMGS[em], h = 64, img = make('img');
+        const small = document.createElement('canvas');
+        small.width = Math.round(h * c.width / c.height); small.height = h;
+        small.getContext('2d').drawImage(c, 0, 0, small.width, small.height);
+        img.src = small.toDataURL(); img.alt = '';
+        icon.append(img);
+      }
+      b.append(icon, txt);
       return b;
     };
     picks.append(
       pickBtn('💜', QUIZ.intro.title, '질문 10개로 알아보는 나의 독서 취향', quizIntro),
       pickBtn('📚', SHELF.intro.title, '책을 알맞은 분류 칸에 꽂아 보는 퀴즈', shelfIntro),
-      pickBtn('🛒', HIDE.intro.title, '책 뒤에 숨은 쌍둥이를 찾아라!', hideIntro),
+      pickBtn('duo-cart', HIDE.intro.title, '책 뒤에 숨은 쌍둥이를 찾아라!', hideIntro),
     );
     showQuizScreen([make('h2', null, '구구독 구구덕 게임'), make('p', null, '어떤 게임을 해 볼까?'), picks]);
   }
