@@ -928,7 +928,8 @@
     const found = silhouetteKeyAt(e.clientX, e.clientY);
     if (found) {
       stage.style.cursor = '';
-      summon([found], 'found');
+      // a tap is a hello, not a question: if replies.js has no 'found' lines yet, greet as usual
+      summon([found], BY_ID.found ? 'found' : 'greet');
       return;
     }
     if (state !== 'shown') return;
