@@ -56,15 +56,16 @@
   @keyframes pop { to { opacity: 1; transform: none; } }
 
   /* before anyone appears, the twins wait behind the dust as a shadow */
+  /* it fills the room between the welcome words and the input bar (placed by placeSilhouette) */
   #silhouette {
-    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%); z-index: 0;
-    height: min(62vh, 560px); max-width: calc(100vw - 32px); object-fit: contain; pointer-events: none;
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 0;
+    max-width: calc(100vw - 32px); object-fit: contain; pointer-events: none;
     filter: brightness(0) drop-shadow(0 0 10px rgba(255, 220, 160, .35));
     opacity: .6; transition: opacity 1s;
   }
   #silhouette.gone { opacity: 0; }
   #hint {
-    position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%);
+    position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%);
     z-index: 2; width: min(960px, calc(100vw - 32px)); word-break: keep-all;
     text-align: center; pointer-events: none; transition: opacity .6s;
   }
@@ -317,6 +318,14 @@
   const hint = document.getElementById('hint');
   const silhouette = document.getElementById('silhouette');
   silhouette.src = window.CHAR_IMAGES['duo-stand'];
+  // the shadow stands below the welcome words and above the input bar, never under the words
+  function placeSilhouette() {
+    const top = hint.getBoundingClientRect().bottom + 16;
+    const room = form.getBoundingClientRect().top - 12 - top;
+    silhouette.hidden = room < 100;
+    silhouette.style.top = top + 'px';
+    silhouette.style.height = Math.min(room, 560) + 'px';
+  }
   const heard = document.getElementById('heard');
   const toastEl = document.getElementById('toast');
   const form = document.getElementById('form');
@@ -1079,6 +1088,10 @@
   }
   window.addEventListener('resize', resize);
   resize();
+  window.addEventListener('resize', placeSilhouette);
+  placeSilhouette();
+  // the web font can change how tall the words are once it arrives
+  if (document.fonts) document.fonts.ready.then(placeSilhouette);
   for (let i = 0; i < IDLE_COUNT; i++) particles.push(makeParticle(true));
 
   // ---------- reading-taste test (questions and results live in quiz.js) ----------
