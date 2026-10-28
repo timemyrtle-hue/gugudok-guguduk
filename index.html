@@ -1711,9 +1711,14 @@
 
   function riddleIntro() {
     riddleScore = 0; riddleResult = null;
-    // each round: a character, plus three others as the wrong choices
+    // each round: a character, plus the three look-alikes sharing the most tags as the wrong choices
+    // (the random part only breaks ties, so 콩쥐 gets 신데렐라·팥쥐·백설 공주 rather than 걸리버);
+    // anyone with the very same first hint always comes along (걸리버 ↔ 로빈슨 크루소)
+    const lookAlikes = c => RIDDLE.characters.filter(o => o !== c)
+      .map(o => ({ o, s: o.tags.filter(t => c.tags.includes(t)).length + (o.hints[0] === c.hints[0] ? 10 : 0) + Math.random() * 0.9 }))
+      .sort((a, b) => b.s - a.s).slice(0, 3).map(x => x.o);
     riddleRounds = shuffle(RIDDLE.characters).slice(0, RIDDLE.rounds).map(c => ({
-      c, options: shuffle([c, ...shuffle(RIDDLE.characters.filter(o => o !== c)).slice(0, 3)]),
+      c, options: shuffle([c, ...lookAlikes(c)]),
     }));
     drawQuizPose(RIDDLE.intro.pose);
     const actions = make('div', 'quiz-actions');
