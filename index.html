@@ -1794,12 +1794,22 @@
   let riddleRounds = [], riddleScore = 0, riddleResult = null, riddleChance = true, riddleLevel = RIDDLE.levels[1];
 
   // the secret character, look-alikes for half the board, and the rest picked at random
+  // how many questions two heroes answer differently
+  const riddleDiff = (a, b) => RIDDLE.questions.filter(q => riddleAnswer(a, q) !== riddleAnswer(b, q)).length;
+  // cards that are easy to tell apart: every two differ in at least minDiff answers
+  // (if a board cannot be made that way, ask a little less)
   function riddleBoard(c, size) {
-    const alike = o => RIDDLE.questions.filter(q => riddleAnswer(o, q) === riddleAnswer(c, q)).length + Math.random() * 0.9;
-    const others = RIDDLE.characters.filter(o => o !== c).map(o => ({ o, s: alike(o) })).sort((a, b) => b.s - a.s);
-    const near = Math.floor(size / 2);
-    const rest = shuffle(others.slice(near)).slice(0, size - 1 - near);
-    return shuffle([c, ...others.slice(0, near), ...rest].map(x => x.o || x));
+    for (let need = RIDDLE.minDiff || 6; need >= 0; need--) {
+      for (let t = 0; t < 30; t++) {
+        const board = [c];
+        for (const o of shuffle(RIDDLE.characters)) {
+          if (board.length >= size) break;
+          if (!board.includes(o) && board.every(b => riddleDiff(b, o) >= need)) board.push(o);
+        }
+        if (board.length >= size) return shuffle(board);
+      }
+    }
+    return shuffle(RIDDLE.characters).slice(0, size);
   }
   function riddleIntro() {
     riddleScore = 0; riddleResult = null; riddleChance = true;
