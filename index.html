@@ -491,6 +491,7 @@
 <script src="shelf.js"></script>
 <script src="riddle.js"></script>
 <script src="names.js"></script>
+<script src="eggs.js"></script>
 <script>
 (() => {
   const shelf = document.getElementById('shelf');
@@ -637,6 +638,24 @@
     dim.addColorStop(1, 'rgba(18,14,31,0.85)');
     sctx.fillStyle = dim;
     sctx.fillRect(0, 0, W, H);
+    // the hidden golden book (eggs.js): on a shelf in the middle band, near a side
+    if (gold && !gold.found) {
+      const first = Math.ceil(H * 0.3 / shelfH), last = Math.max(first, Math.floor(H * 0.55 / shelfH));
+      const baseY = (first + Math.floor(gold.row * (last - first + 1))) * shelfH;
+      const w = 15, h = shelfH * 0.6;
+      gold.rect = { x: gold.fx * W - w / 2, y: baseY - 8 - h, w, h };
+      const g = sctx.createLinearGradient(gold.rect.x, 0, gold.rect.x + w, 0);
+      g.addColorStop(0, '#b8862b'); g.addColorStop(0.5, '#ffe08a'); g.addColorStop(1, '#c9952f');
+      sctx.save();
+      sctx.shadowColor = 'rgba(255, 214, 120, 0.7)'; sctx.shadowBlur = 10;
+      sctx.fillStyle = g;
+      roundRect(sctx, gold.rect.x, gold.rect.y, w, h, 3);
+      sctx.fill();
+      sctx.restore();
+      sctx.fillStyle = 'rgba(120, 80, 20, 0.5)';
+      sctx.fillRect(gold.rect.x + 3, gold.rect.y + 10, w - 6, 2);
+      sctx.fillRect(gold.rect.x + 3, gold.rect.y + h * 0.7, w - 6, 2);
+    }
     // diagonal sunbeam from the top-left window
     const beam = beamPoly();
     const g = sctx.createLinearGradient(beam[0][0], 0, W * 0.6, H);
@@ -793,8 +812,15 @@
     if (!fresh.length) return;
     // a found pose introduces itself with its own line
     // a twin who was already out answers right away; the newcomer speaks once formed
-    const line = fresh.flatMap(s => (isDuo(s) ? ['dok', 'duk'] : [s.key])
+    let line = fresh.flatMap(s => (isDuo(s) ? ['dok', 'duk'] : [s.key])
       .map(k => [k, reply(topic, k, old.length ? 'join' : 'first')]));
+    // a special day or a late night: the very first words start with that greeting (eggs.js)
+    const opener = !old.length && !openerUsed && !isEgg(topic) && !(BY_ID[topic] || {}).serious
+      && !/swear|crisis/.test(topic) && eggOpener();
+    if (opener) {
+      openerUsed = true;
+      line = line.map(([k]) => [k, opener[k] + ' ' + reply(topic, k, 'chat')]);
+    }
     old.forEach(s => say(s.key, reply(topic, s.key, 'chat')));
     let targets = [];
     for (const s of fresh) targets = targets.concat(sampleTargets(s.img, s.x, s.y, s.w, s.h, 2600 / fresh.length + 600));
@@ -840,6 +866,13 @@
   }
 
   let pendingLine = null;
+  let openerUsed = false;
+  function eggOpener() {
+    if (!EGGS) return null;
+    const d = new Date(), h = d.getHours();
+    return EGGS.days[`${d.getMonth() + 1}-${d.getDate()}`]
+      || (h >= EGGS.night.from || h < EGGS.night.to ? EGGS.night : null);
+  }
 
   function bobOffset(s) { return Math.sin(performance.now() / 420 + s.bob) * 6; }
 
@@ -940,6 +973,24 @@
   BY_ID.other = window.REPLY_OTHER;
   BY_ID.unsure = window.REPLY_UNSURE;
   BY_ID.poke = window.REPLY_POKE;
+  // hidden surprises (eggs.js); they answer like any other topic, always both twins together
+  const EGGS = window.EGGS || null;
+  const EGG_TOPICS = EGGS ? EGGS.topics : [];
+  EGG_TOPICS.forEach(e => { BY_ID[e.id] = e; });
+  const isEgg = topic => topic === 'callno' || EGG_TOPICS.some(e => e.id === topic);
+  // a call number on its own ("813", "813.6"): 구구독 tells which shelf it lives on
+  function callNoTopic(t) {
+    const m = EGGS && window.SHELF && t.match(/^\s*(\d{3})(\.\d+)?\s*$/);
+    if (!m) return null;
+    const C = EGGS.callNo, code = m[1];
+    const main = window.SHELF.sections.find(s => s.code === code[0] + '00');
+    if (!main) return null;
+    const name = C.divisions[code] || C.divisions[code.slice(0, 2) + '0'];
+    const dok = (name && code[1] !== '0' ? fill(C.dok, { code: m[0].trim(), main: main.name, top: main.code, name })
+      : fill(C.dokMain, { code: m[0].trim(), main: main.name, hint: main.hint })) + (m[2] ? C.decimal : '');
+    BY_ID.callno = { first: { dok: [dok], duk: C.duk }, dok: [dok], duk: C.duk };
+    return 'callno';
+  }
   // mode: 'first' (appears alone), 'join' (twin comes out beside the other), 'chat'
   function reply(topic, key, mode) {
     const r = BY_ID[topic] || BY_ID.other;
@@ -952,6 +1003,8 @@
     return r.first ? pickFresh(r.first[key]) : pickFresh(window.REPLY_INTRO[key]) + ' ' + pickFresh(r[key]);
   }
   function topicOf(t) {
+    const egg = EGG_TOPICS.find(r => r.match.test(t)) || (callNoTopic(t) && { id: 'callno' });
+    if (egg) return egg.id;
     const hit = REPLIES.find(r => r.match.test(t));
     if (hit) return hit.id;
     // nothing expected: a question (ends in ?) is a surprise, anything else is "not sure yet"
@@ -1035,7 +1088,7 @@
   // finds a name in "내 이름은 서연이야", or, typed in the name box, in "서연이에요" / "김서연" / "서연"
   // (direct: it came from the name box, so any word there is meant as a name)
   function findName(text, asked, direct) {
-    let t = text.replace(/[^가-힣a-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    let t = text.replace(/[^가-힣a-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim().replace(/사서 선생님/, '사서선생님');
     // "김 서연" → "김서연"
     const spaced = t.match(/^([가-힣]) ([가-힣]{1,3}[가-힣]*)$/);
     if (spaced && SURNAMES.includes(spaced[1])) t = spaced[1] + spaced[2];
@@ -1128,6 +1181,15 @@
     }, delay);
   }
   function greetByName(raw) {
+    // "사서" / "사서 선생님": the twins are caught off guard (eggs.js)
+    const L = EGGS && EGGS.librarian;
+    if (L && L.match.test(raw)) {
+      visitor = { raw, latin: false, name: L.call, call: L.call, nameN: L.call, seed: hashOf(raw) };
+      const out = ['dok', 'duk'].filter(isOut);
+      repose(out);
+      out.forEach(k => say(k, L[k]));
+      return;
+    }
     visitor = nameInfo(raw);
     const v = visitor, out = ['dok', 'duk'].filter(isOut);
     if (!out.length) return;
@@ -1262,7 +1324,8 @@
     if (state === 'idle') {
       if (topic === 'bye') { toast('아직 아무도 나오지 않았어요. 먼저 환영 인사를 건네 볼까요?'); return; }
       talks++;
-      summon(whoFor(text), topic);
+      summon(isEgg(topic) ? ['dok', 'duk'] : whoFor(text), topic);
+      if ((BY_ID[topic] || {}).heart) whenShown(heartDust, 300);
       if (askNow()) askName(2800);
       return;
     }
@@ -1275,10 +1338,12 @@
       return;
     }
     const named = /구구독|구독|구구덕|구덕|쌍둥이|둘\s*다|모두/.test(text);
-    const keys = named ? whoFor(text) : ['dok', 'duk'];
-    repose(keys);
+    const keys = named && !isEgg(topic) ? whoFor(text) : ['dok', 'duk'];
+    const egg = BY_ID[topic] || {};
+    if (egg.pose) setPoses(egg.pose); else repose(keys);
     // both twins answer at the same time
     keys.forEach((k, i) => say(k, withName(reply(topic, k, 'chat'), topic, i === 0)));
+    if (egg.heart) heartDust();
     if (askNow()) askName(3200);
     // swear words get no invitation; it waits for the next friendly message
     else if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, 3000);
@@ -1309,6 +1374,63 @@
       return Object.assign(s, { alpha: 1, bob: prev.bob, dx: prev.dx, pop: s.key === key ? 1 : 0 });
     });
     burst(shown.filter(s => s.key === key), 18);
+  }
+
+  // ---------- hidden surprises (eggs.js) ----------
+  // set given poses ({ dok: 'dok-music' }); a twin not named keeps its own (a duo picture splits in two)
+  function setPoses(map) {
+    const items = ['dok', 'duk'].filter(isOut).map(key => {
+      const cur = shown.find(s => s.key === key);
+      const pose = (map[key] && POSES[key].find(p => p.id === map[key])) || (cur ? cur.pose : randomPose(key));
+      return { key, pose };
+    });
+    shown = layoutFor(items).map(s => {
+      const prev = shown.find(o => o.key === s.key);
+      return Object.assign(s, { alpha: 1, pop: map[s.key] ? 1 : 0, bob: prev ? prev.bob : s.bob, dx: prev ? prev.dx : s.dx });
+    });
+    burst(shown.filter(s => map[s.key]), 18);
+  }
+  // little stars gather into a heart between the twins for a moment
+  function heartDust() {
+    if (!shown.length) return;
+    const top = Math.min(...shown.map(s => s.y)), cy = top + 40, cx = W / 2, k = Math.min(W, H) * 0.009;
+    for (let i = 0; i < 30; i++) {
+      const t = i / 30 * Math.PI * 2;
+      const x = 16 * Math.pow(Math.sin(t), 3), y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
+      sparkles.push({ x: cx + x * k, y: cy + y * k, vx: 0, vy: -50, r: 4, life: 1.8, col: pick(['#ffd1ec', '#ff9fd0', '#fff3c4']) });
+    }
+  }
+  // a surprise that is not typed (golden book, secret code): both twins come out or answer
+  function eggSay(topic) {
+    if (ending || !quizEl.hidden || state === 'gather' || state === 'leave' || state === 'ended') return;
+    if (state === 'idle' || !isOut('dok') || !isOut('duk')) return void summon(['dok', 'duk'], topic);
+    const egg = BY_ID[topic];
+    if (egg.pose) setPoses(egg.pose); else repose(['dok', 'duk']);
+    ['dok', 'duk'].forEach(k => say(k, reply(topic, k, 'chat')));
+  }
+  // ↑↑↓↓←→←→ on a keyboard
+  const SECRET_KEYS = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight'];
+  let secretAt = 0;
+  document.addEventListener('keydown', e => {
+    if (!EGGS) return;
+    secretAt = e.key === SECRET_KEYS[secretAt] ? secretAt + 1 : e.key === SECRET_KEYS[0] ? 1 : 0;
+    if (secretAt === SECRET_KEYS.length) { secretAt = 0; eggSay('konami'); }
+  });
+  // now and then a golden book hides on a shelf near the side; a tap finds it
+  const gold = EGGS && Math.random() < EGGS.goldChance ? { fx: Math.random() < 0.5 ? 0.05 + Math.random() * 0.08 : 0.87 + Math.random() * 0.08, row: Math.random(), found: false } : null;
+  const onGold = (x, y) => gold && !gold.found && gold.rect
+    && x > gold.rect.x - 14 && x < gold.rect.x + gold.rect.w + 14 && y > gold.rect.y - 14 && y < gold.rect.y + gold.rect.h + 14;
+  // five quick taps on the same twin tickle them
+  const tickles = { dok: [], duk: [] };
+  function tickled(key) {
+    if (!EGGS) return false;
+    const T = EGGS.tickle, now = performance.now() / 1000;
+    const list = tickles[key] = tickles[key].filter(t => now - t < T.within).concat(now);
+    if (list.length < T.taps) return false;
+    tickles[key] = [];
+    setPoses({ [key]: T.pose[key] });
+    say(key, pickFresh(T[key]));
+    return true;
   }
 
   let heardTimer;
@@ -1351,9 +1473,16 @@
     return (x - left) / w < 0.5 ? 'dok' : 'duk';
   }
   stage.addEventListener('mousemove', e => {
-    stage.style.cursor = silhouetteKeyAt(e.clientX, e.clientY) ? 'pointer' : '';
+    stage.style.cursor = silhouetteKeyAt(e.clientX, e.clientY) || onGold(e.clientX, e.clientY) ? 'pointer' : '';
   });
   stage.addEventListener('click', e => {
+    if (onGold(e.clientX, e.clientY) && (state === 'idle' || state === 'shown')) {
+      gold.found = true;
+      drawShelf();
+      burst([{ key: 'gold', x: gold.rect.x - 20, y: gold.rect.y, w: gold.rect.w + 40, h: gold.rect.h }], 30);
+      eggSay('goldbook');
+      return;
+    }
     const found = silhouetteKeyAt(e.clientX, e.clientY);
     if (found) {
       stage.style.cursor = '';
@@ -1367,6 +1496,7 @@
     // on a duo picture, the twin closest to the tap answers
     const key = !isDuo(s) ? s.key
       : Math.abs(anchorOf('dok').cx - e.clientX) < Math.abs(anchorOf('duk').cx - e.clientX) ? 'dok' : 'duk';
+    if (tickled(key)) return;
     // each picture has its own reactions (replies.js POSE_POKES); duo pictures have one set per twin
     const own = (window.POSE_POKES || {})[s.pose.id];
     const lines = own && (Array.isArray(own) ? own : own[key]);
@@ -1495,6 +1625,14 @@
       s.x += s.vx * dt; s.y += s.vy * dt; s.vy += 60 * dt;
       ctx.globalAlpha = Math.min(1, s.life * 1.5);
       star(s.x, s.y, s.r * (0.6 + s.life), s.col);
+    }
+    // the golden book glints now and then
+    if (gold && !gold.found && gold.rect && state !== 'leave' && state !== 'ended') {
+      const glint = Math.pow(Math.max(0, Math.sin(now / 900)), 12);
+      if (glint > 0.02) {
+        ctx.globalAlpha = glint;
+        star(gold.rect.x + gold.rect.w * 0.7, gold.rect.y + 6, 7, '#fff3c4');
+      }
     }
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
