@@ -1277,10 +1277,11 @@
     const named = /구구독|구독|구구덕|구덕|쌍둥이|둘\s*다|모두/.test(text);
     const keys = named ? whoFor(text) : ['dok', 'duk'];
     repose(keys);
-    keys.forEach((k, i) => setTimeout(() => say(k, withName(reply(topic, k, 'chat'), topic, i === 0)), i * 1400));
-    if (askNow()) askName(keys.length * 1400 + 1800);
+    // both twins answer at the same time
+    keys.forEach((k, i) => say(k, withName(reply(topic, k, 'chat'), topic, i === 0)));
+    if (askNow()) askName(3200);
     // swear words get no invitation; it waits for the next friendly message
-    else if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, keys.length * 1400 + 1600);
+    else if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, 3000);
   }
 
   // with both twins out, each new message changes the picture: sometimes the duo
@@ -1426,7 +1427,7 @@
       shown.forEach(s => delete s.isNew);
       if (layoutSize !== W + 'x' + H) relayout();
       if (pendingLine) {
-        pendingLine.forEach(([k, line], i) => setTimeout(() => say(k, line), 250 + i * 1500));
+        pendingLine.forEach(([k, line]) => setTimeout(() => say(k, line), 250));
         pendingLine = null;
       }
     }
