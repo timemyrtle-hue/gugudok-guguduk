@@ -300,11 +300,11 @@
     font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
     border: 2px solid #c9b3f5; background: #fff; color: #7b3fe0;
   }
-  .riddle-tools .guess.on { background: #ffd98f; border-color: #f0b84a; color: #5b3a8a; }
+  .riddle-tools .next { border-color: #a35cf5; background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff; }
   .riddle-tools .chance { border-color: #ffd98f; color: #b07a12; }
   .riddle-tools button:disabled { opacity: .4; cursor: default; }
   .riddle-label { margin: 10px 0 5px; font-size: 13px; color: #8a76ad; text-align: left; }
-  /* the candidate cards: tap to flip one down (and back up) */
+  /* the candidate cards: a tap is a guess; wrong ones are crossed out */
   .riddle-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 5px; }
   .riddle-board button {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
@@ -316,19 +316,15 @@
   .riddle-board button.out { opacity: .4; background: #ede7f6; transform: scale(.94); }
   .riddle-board button.out .em { filter: grayscale(1); }
   .riddle-board button.out .nm { text-decoration: line-through; }
-  .riddle-board button.locked { cursor: default; }
-  .riddle-board.aim button:not(.out) { border-color: #f0b84a; box-shadow: 0 0 0 3px #ffe7b0; }
+  .riddle-board button.out { cursor: default; }
   .riddle-board button.right { opacity: 1; transform: scale(1.06); background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
   .riddle-board button.right .em { filter: none; }
   .riddle-board button.right .nm { text-decoration: none; }
-  /* the questions: once asked they stay, marked with the answer */
-  .riddle-qs { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
-  .riddle-qs button {
-    font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; cursor: pointer; word-break: keep-all;
-    border: 2px solid #c9b3f5; background: #f7f2ff; color: #5b3b99;
-  }
-  .riddle-qs button.yes { background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
-  .riddle-qs button.no { background: #f1f1f1; border-color: #ddd; color: #888; }
+  /* every question asked so far, newest on top */
+  .riddle-log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 14px; }
+  .riddle-log li { padding: 4px 10px; border-radius: 10px; word-break: keep-all; }
+  .riddle-log li.yes { background: #dff7e8; color: #1d6b4c; }
+  .riddle-log li.no { background: #f3f3f3; color: #888; }
   /* after a round: each question asked, with the answer and why */
   .riddle-check { list-style: none; padding: 0; margin: 0; text-align: left; font-size: 14px; line-height: 1.45; }
   .riddle-check li { padding: 5px 2px; border-bottom: 1px dashed #e5dcfa; word-break: keep-all; }
@@ -1779,9 +1775,10 @@
   }
   function riddleRound(i) {
     const { c, board } = riddleRounds[i];
-    const host = i % 2 ? 'dok' : 'duk', poses = RIDDLE_POSES[host];
-    drawQuizPose(pick(poses.ask));
-    let used = 0, done = false, aiming = false;
+    // the round's host; each answer comes from either twin at random
+    const host = i % 2 ? 'dok' : 'duk';
+    drawQuizPose(pick(RIDDLE_POSES[host].ask));
+    let used = 0, done = false;
     const asked = [];
     // 남은 고개: a number and a row of twenty little hills
     const count = make('div', 'riddle-count'), hills = make('div', 'riddle-hills');
@@ -1791,93 +1788,87 @@
       [...hills.children].forEach((h, k) => h.classList.toggle('used', k < used));
     };
     showCount();
-    // the twin's latest answer
-    const talk = make('div', 'quiz-say'), words = document.createTextNode(RIDDLE.ask);
-    talk.append(make('b', null, CHARS[host].name), words);
-    const say = (text, pose) => { words.textContent = text; if (pose) drawQuizPose(pick(pose)); };
+    // the latest answer, with the name of the twin who gave it
+    const talk = make('div', 'quiz-say'), who = make('b'), words = document.createTextNode('');
+    talk.append(who, words);
+    const say = (key, text, pose) => {
+      who.textContent = CHARS[key].name; who.style.color = CHARS[key].color;
+      words.textContent = text;
+      if (pose) drawQuizPose(pick(pose));
+    };
+    // every question so far, newest on top
+    const history = make('ul', 'riddle-log');
     const cards = make('div', 'riddle-board'), cardOf = new Map();
     board.forEach(o => {
-      const b = button('', null, () => tapCard(o, b));
+      const b = button('', null, () => guess(o, b));
       b.append(make('span', 'em', o.emoji || '📖'), make('span', 'nm', o.name));
       cardOf.set(o, b);
       cards.append(b);
     });
-    const guessBtn = button('🎯 정답 맞히기', 'guess', () => setAim(!aiming));
+    const nextBtn = button('🎲 다음 질문', 'next', nextQuestion);
     const chanceBtn = button(`✨ ${CHARS[host].name} 찬스`, 'chance', useChance);
     chanceBtn.disabled = !riddleChance;
     const tools = make('div', 'riddle-tools');
-    tools.append(guessBtn, chanceBtn);
-    const qs = make('div', 'riddle-qs');
-    RIDDLE.questions.forEach(q => {
-      const b = button(q.q, null, () => ask(q, b));
-      qs.append(b);
-    });
+    tools.append(nextBtn, chanceBtn);
+    const alive = () => board.filter(o => !cardOf.get(o).classList.contains('out'));
 
-    function setAim(on) {
-      aiming = on;
-      guessBtn.classList.toggle('on', on);
-      guessBtn.textContent = on ? '🎯 카드를 골라 줘 (취소)' : '🎯 정답 맞히기';
-      cards.classList.toggle('aim', on);
-      if (on) say(RIDDLE.guessOn);
-    }
-    function tapCard(o, b) {
-      if (done || b.classList.contains('locked')) return;
-      // normally a tap flips the card down, or back up
-      if (!aiming) { b.classList.toggle('out'); return; }
-      if (b.classList.contains('out')) return;
-      setAim(false);
-      if (o === c) { finish(true); return; }
-      used += RIDDLE.wrongCost;
-      b.classList.add('wrong', 'out', 'locked');
-      say(pick(RIDDLE.wrongGuess), poses.no);
+    function nextQuestion() {
+      if (done) return;
+      const left = RIDDLE.questions.filter(q => !asked.includes(q));
+      if (!left.length) { say(host, RIDDLE.noMore); nextBtn.disabled = true; return; }
+      // a random question, but one that still tells the remaining cards apart when there is one
+      const a = alive();
+      const useful = left.filter(q => a.some(o => riddleYes(o, q.id)) && a.some(o => !riddleYes(o, q.id)));
+      const q = pick(useful.length ? useful : left);
+      used++;
+      asked.push(q);
+      const yes = riddleYes(c, q.id), key = pick(['dok', 'duk']);
+      say(key, `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}`, yes ? RIDDLE_POSES[key].yes : RIDDLE_POSES[key].no);
+      const li = make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`);
+      history.prepend(li);
       showCount();
       if (used >= RIDDLE.limit) finish(false);
     }
-    // once a game: three wrong cards (face-up ones first) are flipped for good
+    // a tap on a card is a guess; a wrong one costs two 고개 and that card is crossed out
+    function guess(o, b) {
+      if (done || b.classList.contains('out')) return;
+      if (o === c) { finish(true); return; }
+      used += RIDDLE.wrongCost;
+      b.classList.add('wrong', 'out');
+      say(host, pick(RIDDLE.wrongGuess), RIDDLE_POSES[host].no);
+      showCount();
+      if (used >= RIDDLE.limit) finish(false);
+    }
+    // once a game: three wrong cards are crossed out
     function useChance() {
       if (done || !riddleChance) return;
       riddleChance = false;
       chanceBtn.disabled = true;
-      const isOut = o => cardOf.get(o).classList.contains('out');
-      shuffle(board.filter(o => o !== c && !cardOf.get(o).classList.contains('locked')))
-        .sort((a, b) => isOut(a) - isOut(b))
-        .slice(0, RIDDLE.chanceCards)
-        .forEach(o => cardOf.get(o).classList.add('out', 'locked'));
-      say(RIDDLE.chanceLine, poses.yes);
-    }
-    function ask(q, b) {
-      if (done) return;
-      if (aiming) setAim(false);
-      used++;
-      asked.push(q);
-      const yes = riddleYes(c, q.id);
-      b.disabled = true;
-      b.classList.add(yes ? 'yes' : 'no');
-      b.textContent = `${yes ? '⭕' : '❌'} ${q.q}`;
-      say(`"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}`, yes ? poses.yes : poses.no);
-      showCount();
-      if (used >= RIDDLE.limit) finish(false);
+      shuffle(alive().filter(o => o !== c)).slice(0, RIDDLE.chanceCards)
+        .forEach(o => cardOf.get(o).classList.add('out'));
+      say(host, RIDDLE.chanceLine, RIDDLE_POSES[host].yes);
     }
     function finish(ok) {
       done = true;
-      setAim(false);
-      guessBtn.disabled = true; chanceBtn.disabled = true;
+      nextBtn.disabled = true; chanceBtn.disabled = true;
       cards.querySelectorAll('button').forEach(x => { x.disabled = true; });
-      qs.querySelectorAll('button').forEach(x => { x.disabled = true; });
       const answer = cardOf.get(c);
       answer.classList.remove('out');
       answer.classList.add('right');
       // fewer 고개 used, more points
       const pts = ok ? (RIDDLE.scores.find(s => used <= s.upTo) || { pts: 1 }).pts : 0;
       riddleScore += pts;
-      say(ok ? pick(RIDDLE.right) : RIDDLE.timeUp);
-      drawQuizPose(ok ? poses.win : pick(poses.no));
+      say(host, ok ? pick(RIDDLE.right) : RIDDLE.timeUp);
+      drawQuizPose(ok ? RIDDLE_POSES[host].win : pick(RIDDLE_POSES[host].no));
       riddleFeedback(i, host, c, ok, pts, used, asked);
     }
+
+    // the first question comes right away
+    nextQuestion();
     showQuizScreen([
       ...riddleHeader(i), count, hills, talk, tools,
-      make('div', 'riddle-label', '주인공 후보 · 아닌 것 같은 카드는 눌러서 뒤집어!'), cards,
-      make('div', 'riddle-label', '질문 고르기 · 질문 하나에 한 고개'), qs,
+      make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 바로 눌러!'), cards,
+      make('div', 'riddle-label', '지금까지 나온 질문과 대답'), history,
     ]);
   }
   function riddleFeedback(i, host, c, ok, pts, used, asked) {
@@ -1901,7 +1892,7 @@
     const lastRound = i + 1 >= riddleRounds.length;
     const nextBtn = button(lastRound ? '결과 보기' : '다음 주인공', 'primary', () => lastRound ? riddleShowResult() : riddleRound(i + 1));
     actions.append(nextBtn);
-    quizBody.append(box, make('div', 'riddle-label', asked.length ? '정답 확인표 · 물어본 질문의 대답' : '이 주인공은 이랬어'), check, actions);
+    quizBody.append(box, make('div', 'riddle-label', asked.length ? '정답 확인표 · 나온 질문의 대답과 이유' : '이 주인공은 이랬어'), check, actions);
     nextBtn.focus({ preventScroll: true });
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
