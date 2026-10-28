@@ -156,6 +156,24 @@
     flex: none; height: 52px; padding: 0 20px; border-radius: 26px; border: none; cursor: pointer;
     background: #fff; color: #5b3a8a; font: inherit; font-size: 19px;
   }
+  /* the name box: same shape as the message box, warm yellow so it reads as a different question */
+  form[hidden] { display: none; }
+  #nameIn {
+    flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 2px solid #ffd98f;
+    background: rgba(255, 217, 143, .14); color: #fff; padding: 0 20px;
+    font: inherit; font-size: 18px; outline: none; animation: nameGlow 1.6s ease-in-out 2;
+  }
+  #nameIn::placeholder { color: rgba(255, 236, 200, .75); font-size: 16px; }
+  #nameIn.bad { border-color: #ff8fa3; }
+  #nameOk, #nameSkip {
+    flex: none; height: 52px; padding: 0 18px; border-radius: 26px; cursor: pointer;
+    font: inherit; font-size: 17px; white-space: nowrap;
+  }
+  #nameOk { border: none; background: #ffd98f; color: #5b3a8a; }
+  #nameSkip { border: 2px solid rgba(255,255,255,.3); background: transparent; color: #fff; }
+  @keyframes nameGlow { 50% { box-shadow: 0 0 0 6px rgba(255, 217, 143, .25); } }
+  /* the game button steps aside while the name box needs the room */
+  body.naming #gameBtn { display: none; }
   #toast {
     position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6;
     background: rgba(0,0,0,.6); padding: 10px 18px; border-radius: 12px; font-size: 16px;
@@ -310,6 +328,9 @@
     .bubble { padding: 10px 12px; font-size: 14px; border-radius: 18px; }
     #say { height: 46px; padding: 0 14px; font-size: 16px; }
     #send { height: 46px; padding: 0 14px; font-size: 16px; }
+    #nameIn { height: 46px; padding: 0 14px; font-size: 16px; }
+    #nameIn::placeholder { font-size: 14px; }
+    #nameOk, #nameSkip { height: 46px; padding: 0 12px; font-size: 15px; }
   }
 </style>
 </head>
@@ -343,6 +364,12 @@
   <form id="form">
     <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
     <button id="send" type="submit">말하기</button>
+  </form>
+  <!-- shown instead of the message box while a twin is asking for the visitor's name -->
+  <form id="nameForm" hidden>
+    <input id="nameIn" autocomplete="off" maxlength="12" placeholder="🙂 이름이나 별명" aria-label="이름이나 별명">
+    <button id="nameOk" type="submit">알려 주기</button>
+    <button id="nameSkip" type="button">비밀이야</button>
   </form>
 </div>
 
@@ -886,8 +913,9 @@
   const NAME_ENDINGS = /(이에요|예요|에요|입니다|이랍니다|이라고\s*해요?|라고\s*해요?|이라고\s*합니다|라고\s*합니다|이야|이다|이요|이고|야|요|임)$/;
   const NOT_NAMES = /^(안녕|응|어|네|예|넹|넵|아니|아니요|아뇨|몰라|모름|비밀|싫어|왜|뭐|뭐게|뭘까|뭐야|고마워|감사|좋아|그래|반가워|하이|헬로|나|너|저|누구|이름|별명|구구독|구구덕|hi|hello)$/i;
   const SECRET_RE = /비밀|몰라|모름|싫어|안\s*알려|말\s*안\s*해|노코멘트|뭐게|맞혀\s*봐/;
-  // finds a name in "내 이름은 서연이야", or, right after we asked, in "서연이에요" / "김서연" / "서연"
-  function findName(text, asked) {
+  // finds a name in "내 이름은 서연이야", or, typed in the name box, in "서연이에요" / "김서연" / "서연"
+  // (direct: it came from the name box, so any word there is meant as a name)
+  function findName(text, asked, direct) {
     let t = text.replace(/[^가-힣a-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
     // "김 서연" → "김서연"
     const spaced = t.match(/^([가-힣]) ([가-힣]{1,3}[가-힣]*)$/);
@@ -907,9 +935,49 @@
     if (!/^([가-힣]{1,5}|[a-zA-Z]{1,12})$/.test(name) || NOT_NAMES.test(name)) return null;
     if (window.SWEAR_RE && window.SWEAR_RE.test(name)) return null;
     // a bare word is a name only if it is not something we already understand ("배고파")
-    if (!sure && name === said && !['other', 'unsure'].includes(topicOf(text))) return null;
+    if (!direct && !sure && name === said && !['other', 'unsure'].includes(topicOf(text))) return null;
     return name;
   }
+  // the name box takes the place of the message box while a twin waits for the answer
+  const nameForm = document.getElementById('nameForm');
+  const nameIn = document.getElementById('nameIn');
+  function openNameBox() {
+    document.body.classList.add('naming');
+    form.hidden = true; nameForm.hidden = false;
+    nameIn.value = ''; nameIn.classList.remove('bad');
+    // on a phone, focusing would pop the keyboard up before the visitor reads the question
+    if (!touch) nameIn.focus();
+  }
+  function closeNameBox() {
+    nameForm.hidden = true; form.hidden = false;
+    document.body.classList.remove('naming');
+    if (document.activeElement === nameIn) nameIn.blur();
+  }
+  nameForm.addEventListener('submit', e => {
+    e.preventDefault();
+    const text = nameIn.value.trim();
+    if (!text) { nameIn.focus(); return; }
+    if (SECRET_RE.test(text)) { keepSecret(); return; }
+    const found = findName(text, true, true);
+    if (!found) {
+      nameIn.classList.add('bad');
+      toast('이름이나 별명을 다시 적어 줄래요? (한글 5글자, 영어 12글자까지)');
+      nameIn.focus();
+      return;
+    }
+    nameAsk = 'done'; talks++;
+    closeNameBox();
+    showHeard(text);
+    // let a phone keyboard close first so the twins have the whole screen
+    setTimeout(() => greetByName(found), touch ? 350 : 0);
+  });
+  function keepSecret() {
+    nameAsk = 'done'; talks++;
+    closeNameBox();
+    const k = nameKey && isOut(nameKey) ? nameKey : ['dok', 'duk'].find(isOut);
+    if (k) say(k, pick(NAMES.secret[k]));
+  }
+  document.getElementById('nameSkip').addEventListener('click', keepSecret);
   // runs fn once the twins are formed and have finished their first words
   function whenShown(fn, extra) {
     let tries = 0;
@@ -926,6 +994,7 @@
       nameKey = pick(out);
       say(nameKey, pick(NAMES.ask[nameKey]));
       nameAsk = 'open';
+      openNameBox();
     }, delay);
   }
   function greetByName(raw) {
@@ -971,18 +1040,14 @@
       if (NO_RE.test(text)) return answerGame(false);
       invite = 'done';
     }
-    // a name: the answer to our question, or told on its own ("내 이름은 서연이야")
-    if ((state === 'shown' || state === 'idle') && nameAsk !== 'done') {
-      const asked = nameAsk === 'open', found = findName(text, asked);
+    // a name told on its own in the message box ("내 이름은 서연이야"); answers to our question go in the name box
+    if ((state === 'shown' || state === 'idle') && nameAsk === 'later') {
+      const found = findName(text, false);
       if (found) {
         nameAsk = 'done'; talks++;
         if (state === 'idle') { summon(whoFor(text), 'greet'); whenShown(() => greetByName(found), 2600); }
         else greetByName(found);
         return;
-      }
-      if (asked) {
-        nameAsk = 'done';
-        if (SECRET_RE.test(text)) { talks++; say(nameKey, pick(NAMES.secret[nameKey])); return; }
       }
     }
     let topic = topicOf(text);
