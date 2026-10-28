@@ -283,45 +283,28 @@
   .game-pick b { display: block; font-weight: normal; font-size: 18px; color: #7b3fe0; }
   .game-pick small { font-size: 14px; color: #6f5c92; word-break: keep-all; }
 
-  /* ----- 구구독 구구덕의 북트럭 숨바꼭질 ----- */
-  /* --bw (book width) is set from the card width so 5 books still fit on a phone */
-  .truck { --bw: 58px; --gap: 8px; width: max-content; margin: 6px auto 0; }
-  .truck-shelf {
-    position: relative; padding: calc(var(--bw) * .95) 12px 0;
-    background: linear-gradient(#3fc4ae, #2aa596) content-box; border: 8px solid #9fe8d0; border-top: 0;
-    border-radius: 0 0 10px 10px; box-shadow: 0 10px 0 -2px #8fe3c8;
+  /* ----- 구구독 구구덕의 스무고개 게임 ----- */
+  .riddle-hints { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+  .riddle-hints li {
+    background: #f7f2ff; border-radius: 12px; padding: 8px 12px; font-size: 15px; line-height: 1.45;
+    word-break: keep-all; animation: riddleIn .35s ease-out both;
   }
-  .truck-row { position: relative; height: calc(var(--bw) * 1.8); }
-  .truck-wheels { display: flex; justify-content: space-between; padding: 12px 6px 0; }
-  .truck-wheels span { width: 16px; height: 16px; border-radius: 50%; background: #3a3540; box-shadow: inset 0 -3px rgba(0,0,0,.35); }
-  .hb {
-    position: absolute; bottom: 0; width: var(--bw); height: calc(var(--bw) * 1.8);
-    padding: 0; border: 0; background: none; font: inherit; cursor: default;
-    transition-property: left, transform; transition-timing-function: ease-in-out;
+  .riddle-hints li b { display: inline-block; margin-right: 6px; font-weight: normal; font-size: 12px; color: #fff; background: #a35cf5; border-radius: 999px; padding: 1px 8px; }
+  .riddle-opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .riddle-opts button {
+    font: inherit; font-size: 15px; padding: 10px 6px; border-radius: 12px; cursor: pointer; word-break: keep-all;
+    border: 2px solid transparent; background: #e9f8fd; color: #1f5f7a;
   }
-  .hb:enabled { cursor: pointer; }
-  .hb.up { transform: translateY(-16px); }
-  .hb .face {
-    position: absolute; inset: 0; z-index: 2; border-radius: 6px;
-    box-shadow: inset -6px 0 rgba(0,0,0,.14), inset 0 0 0 2px rgba(255,255,255,.18);
-    transition: transform .35s cubic-bezier(.3,1.5,.5,1);
+  .riddle-opts button.right { background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
+  .riddle-note { min-height: 20px; margin: 8px 0 0; font-size: 14px; color: #c0446a; }
+  .riddle-more {
+    margin-top: 6px; font: inherit; font-size: 14px; cursor: pointer; border-radius: 999px; padding: 6px 16px;
+    background: #fff; border: 2px dashed #c9b3f5; color: #7b3fe0;
   }
-  /* two bands across the spine, like a real book */
-  .hb .face::before, .hb .face::after { content: ''; position: absolute; left: 6px; right: 10px; height: 4px; border-radius: 2px; background: rgba(255,255,255,.45); }
-  .hb .face::before { top: 18%; }
-  .hb .face::after { bottom: 18%; }
-  .hb:enabled:hover .face { transform: translateY(-6px); }
-  .hb.open .face { transform: translateY(-62%); }
-  /* "miss", not "wrong": the quiz-wide .wrong style would paint the whole slot pink */
-  .hb.miss .face { box-shadow: 0 0 0 3px #ffb3c1, inset -6px 0 rgba(0,0,0,.14); }
-  .hb .twin {
-    /* inset: auto undoes the page-wide canvas rule (fixed, inset 0) */
-    position: absolute; inset: auto; left: 50%; bottom: 75%; z-index: 1; width: calc(var(--bw) * .92);
-    transform: translateX(-50%); transition: transform .4s ease-in, bottom .4s cubic-bezier(.3,1.5,.5,1);
-  }
-  .hb .twin.hidden { transform: translate(-50%, 72%); }
-  /* found: the twin pops out in front, in the gap the lifted book leaves */
-  .hb.open .twin { z-index: 3; bottom: 4%; }
+  .riddle-more:disabled { opacity: .4; cursor: default; }
+  .riddle-met { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 4px; }
+  .riddle-met span { background: #f3ecff; color: #5b3b99; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+  @keyframes riddleIn { from { opacity: 0; transform: translateY(6px); } }
 
   /* ----- 구구독의 책장 정리 대작전 ----- */
   .shelf-book {
@@ -430,7 +413,7 @@
 <script src="replies.js"></script>
 <script src="quiz.js"></script>
 <script src="shelf.js"></script>
-<script src="hide.js"></script>
+<script src="riddle.js"></script>
 <script src="names.js"></script>
 <script>
 (() => {
@@ -1719,147 +1702,111 @@
     ]);
   }
 
-  // ---------- 구구독 구구덕의 북트럭 숨바꼭질 ----------
-  const HIDE = window.HIDE;
-  // poses whose head sits on top, so peeking over a book looks right
-  const PEEK_POSES = { dok: ['dok-wave', 'dok-wink', 'dok-shush', 'dok-hearteyes'], duk: ['duk-wave', 'duk-search', 'duk-shush', 'duk-think'] };
-  const HIDE_COLORS = [...SPINE_COLORS, '#7a5cc9'];
-  const sleep = ms => new Promise(r => setTimeout(r, ms));
-  // every new round or closing the game bumps this, so a running shuffle knows to stop
-  let hideRun = 0, hideScore = 0, hideResult = null;
+  // ---------- 구구독 구구덕의 스무고개 게임 ----------
+  const RIDDLE = window.RIDDLE;
+  const GOGAE = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
+  // the twins take turns giving the hints, each in a thinking sort of pose
+  const RIDDLE_POSES = { duk: ['duk-search', 'duk-think'], dok: ['dok-read', 'dok-wink'] };
+  let riddleRounds = [], riddleScore = 0, riddleResult = null;
 
-  function hideIntro() {
-    hideRun++; hideScore = 0; hideResult = null;
-    drawQuizPose(HIDE.intro.pose);
+  function riddleIntro() {
+    riddleScore = 0; riddleResult = null;
+    // each round: a character, plus three others as the wrong choices
+    riddleRounds = shuffle(RIDDLE.characters).slice(0, RIDDLE.rounds).map(c => ({
+      c, options: shuffle([c, ...shuffle(RIDDLE.characters.filter(o => o !== c)).slice(0, 3)]),
+    }));
+    drawQuizPose(RIDDLE.intro.pose);
     const actions = make('div', 'quiz-actions');
-    actions.append(button(HIDE.intro.start, 'primary', () => hideRound(0)));
-    showQuizScreen([make('h2', null, HIDE.intro.title), make('p', null, HIDE.intro.text), actions]);
+    actions.append(button(RIDDLE.intro.start, 'primary', () => riddleRound(0)));
+    showQuizScreen([make('h2', null, RIDDLE.intro.title), make('p', null, RIDDLE.intro.text), actions]);
   }
-  function hideHeader(i) {
-    const total = HIDE.stages.length;
+  function riddleHeader(i) {
+    const total = riddleRounds.length;
     const bar = make('div', 'quiz-bar'), fill = make('span');
     fill.style.width = (i / total * 100) + '%';
     bar.append(fill);
-    return [make('div', 'quiz-progress', `${i + 1}단계 / ${total}  ·  찾은 횟수 ${hideScore}`), bar];
+    return [make('div', 'quiz-progress', `${i + 1}번째 주인공 / ${total}  ·  점수 ${riddleScore}`), bar];
   }
-  function twinCanvas(poseId, width) {
-    const img = IMGS[poseId], r = Math.min(2, window.devicePixelRatio || 1);
-    const c = make('canvas', 'twin');
-    c.width = Math.round(width * r); c.height = Math.round(width * r * img.height / img.width);
-    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-    return c;
-  }
-  async function hideRound(i) {
-    const run = ++hideRun, stage = HIDE.stages[i];
-    const key = pick(['dok', 'duk']), other = key === 'dok' ? 'duk' : 'dok';
-    // the twin who is not hiding hosts the round at the top of the card
-    drawQuizPose(pick(PEEK_POSES[other]));
-    const n = stage.books, gap = 8;
-    const room = Math.min(360, quizBody.clientWidth) - 40;
-    const bw = Math.max(40, Math.min(58, Math.floor((room - (n - 1) * gap) / n)));
-    const truck = make('div', 'truck'), shelf = make('div', 'truck-shelf'), row = make('div', 'truck-row');
-    truck.style.setProperty('--bw', bw + 'px');
-    row.style.width = (n * bw + (n - 1) * gap) + 'px';
-    // stage.colors kinds of colour spread over the books, so same-coloured books get mixed in
-    const kinds = stage.colors || n;
-    const palette = shuffle(HIDE_COLORS).slice(0, kinds);
-    const colors = shuffle(Array.from({ length: n }, (_, k) => palette[k % kinds]));
-    const target = (Math.random() * n) | 0;
-    let twin = null;
-    // pos = which slot the book stands in right now
-    const books = Array.from({ length: n }, (_, k) => {
-      const b = button('', 'hb', null);
-      b.disabled = true;
-      b.setAttribute('aria-label', `${k + 1}번째 책`);
-      const face = make('span', 'face');
-      face.style.background = colors[k];
-      if (k === target) { twin = twinCanvas(pick(PEEK_POSES[key]), bw * 0.92); b.append(twin); }
-      b.append(face);
-      b.style.transitionDuration = stage.speed + 'ms';
-      row.append(b);
-      return { b, pos: k };
-    });
-    const place = book => { book.b.style.left = book.pos * (bw + gap) + 'px'; };
-    books.forEach(place);
-    shelf.append(row);
-    const wheels = make('div', 'truck-wheels');
-    wheels.append(make('span'), make('span'));
-    truck.append(shelf, wheels);
-    const name = CHARS[key].name;
-    // a warning on the first stage where same-coloured books appear, and again when all match
-    const prev = HIDE.stages[i - 1];
-    const prevKinds = prev ? (prev.colors || prev.books) : n;
-    const mixed = kinds < n, prevMixed = prev ? prevKinds < prev.books : false;
-    const warn = kinds === 1 && prevKinds > 1 ? HIDE.sameColor : mixed && !prevMixed ? HIDE.mixColor : '';
-    const status = make('div', 'quiz-q', `${name}: "${pick(HIDE.hideLines[key])}"${warn ? ' ' + warn : ''}`);
-    showQuizScreen([...hideHeader(i), status, truck]);
-
-    await sleep(warn ? 2200 : 1500); if (run !== hideRun) return;
-    twin.classList.add('hidden');
-    status.textContent = '빙글빙글~ 잘 따라와!';
-    await sleep(600); if (run !== hideRun) return;
-    for (let s = 0; s < stage.swaps; s++) {
-      const a = (Math.random() * n) | 0;
-      let c = (Math.random() * (n - 1)) | 0; if (c >= a) c++;
-      const A = books.find(x => x.pos === a), C = books.find(x => x.pos === c);
-      [A.pos, C.pos] = [C.pos, A.pos];
-      A.b.classList.add('up');
-      place(A); place(C);
-      await sleep(stage.speed + 40); if (run !== hideRun) return;
-      A.b.classList.remove('up');
+  function riddleRound(i) {
+    const { c, options } = riddleRounds[i];
+    const host = i % 2 ? 'dok' : 'duk';
+    drawQuizPose(pick(RIDDLE_POSES[host]));
+    const list = make('ol', 'riddle-hints');
+    const note = make('p', 'riddle-note');
+    const more = button(RIDDLE.more, 'riddle-more', () => showHint());
+    let shown = 0, wrongs = 0, done = false;
+    function showHint() {
+      if (shown >= c.hints.length) return;
+      const li = make('li');
+      li.append(make('b', null, `${GOGAE[shown]} 고개`), document.createTextNode(c.hints[shown]));
+      list.append(li);
+      shown++;
+      if (shown >= c.hints.length) more.disabled = true;
     }
-    await sleep(200); if (run !== hideRun) return;
-    status.textContent = HIDE.ask;
-    const hidden = books[target];
-    books.forEach(book => {
-      book.b.disabled = false;
-      book.b.addEventListener('click', async () => {
-        books.forEach(x => { x.b.disabled = true; });
-        book.b.classList.add('open');
-        const ok = book === hidden;
-        if (ok) {
-          hideScore++;
-          twin.classList.remove('hidden');
-        } else {
-          book.b.classList.add('miss');
-          await sleep(650); if (run !== hideRun) return;
-          hidden.b.classList.add('open');
-          twin.classList.remove('hidden');
+    showHint();
+    const opts = make('div', 'riddle-opts');
+    options.forEach(o => {
+      const b = button(o.name, null, () => {
+        if (done) return;
+        if (o !== c) {
+          // a wrong guess crosses that choice out and opens the next hint
+          wrongs++;
+          b.classList.add('wrong'); b.disabled = true;
+          note.textContent = pick(RIDDLE.wrong);
+          showHint();
+          return;
         }
-        hideFeedback(i, key, ok);
-      }, { once: true });
+        done = true;
+        // 5 points on the first hint, one less for every extra hint or wrong guess (at least 1)
+        const pts = Math.max(1, 6 - shown - wrongs);
+        riddleScore += pts;
+        b.classList.add('right');
+        opts.querySelectorAll('button').forEach(x => { x.disabled = true; });
+        more.disabled = true;
+        note.textContent = '';
+        riddleFeedback(i, host, c, pts);
+      });
+      opts.append(b);
     });
+    showQuizScreen([...riddleHeader(i), make('div', 'quiz-q', `${CHARS[host].name}: "${RIDDLE.ask}"`), list, opts, note, more]);
   }
-  function hideFeedback(i, key, ok) {
+  function riddleFeedback(i, host, c, pts) {
+    // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a pair
+    const who = c.book === c.name ? '주인공' : c.name;
     const box = make('div', 'quiz-say');
-    box.append(make('b', null, CHARS[key].name), document.createTextNode(pick((ok ? HIDE.found : HIDE.missed)[key])));
+    box.append(make('b', null, CHARS[host].name),
+      document.createTextNode(`${pick(RIDDLE.right)} ${c.we ? '우리는' : '나는'} 「${c.book}」의 ${who}${hasBatchim(who[who.length - 1]) ? '이야' : '야'}! ${'⭐'.repeat(pts)} +${pts}점`));
     const actions = make('div', 'quiz-actions');
-    const last = i + 1 >= HIDE.stages.length;
-    const nextBtn = button(last ? '결과 보기' : '다음 단계', 'primary', () => last ? hideShowResult() : hideRound(i + 1));
+    const lastRound = i + 1 >= riddleRounds.length;
+    const nextBtn = button(lastRound ? '결과 보기' : '다음 주인공', 'primary', () => lastRound ? riddleShowResult() : riddleRound(i + 1));
     actions.append(nextBtn);
     quizBody.append(box, actions);
     nextBtn.focus({ preventScroll: true });
     box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
-  function hideShowResult() {
-    const res = hideResult = HIDE.results.find(r => hideScore >= r.min);
+  function riddleShowResult() {
+    const res = riddleResult = RIDDLE.results.find(r => riddleScore >= r.min);
     drawQuizPose(res.pose);
+    // the characters met in this game, so the visitor can look for their books
+    const met = make('div', 'riddle-met');
+    riddleRounds.forEach(({ c }) => met.append(make('span', null, c.name === c.book ? `「${c.book}」` : `${c.name} · 「${c.book}」`)));
     const box = make('div', 'quiz-say');
-    box.append(make('b', null, '구구독 구구덕'), document.createTextNode(HIDE.outro));
+    box.append(make('b', null, '구구독 구구덕'), document.createTextNode(RIDDLE.outro));
     const actions = make('div', 'quiz-actions');
-    actions.append(button('다시 하기', null, hideIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
+    actions.append(button('다시 하기', null, riddleIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
     showQuizScreen([
-      make('div', 'quiz-label', `${visitor ? visitor.nameN + '는 ' : ''}${HIDE.stages.length}번 중 ${hideScore}번 찾았어!`),
+      make('div', 'quiz-label', `${visitor ? visitor.nameN + '는 ' : ''}${riddleRounds.length * 5}점 중 ${riddleScore}점!`),
       make('div', 'quiz-emoji', res.emoji),
       make('h2', null, res.name),
       make('p', null, res.text),
-      box, actions,
+      make('div', 'quiz-label', '오늘 만난 주인공'),
+      met, box, actions,
     ]);
   }
 
   // ---------- game menu ----------
   function gamesMenu() {
-    quizResult = null; shelfResult = null; hideResult = null; hideRun++;
+    quizResult = null; shelfResult = null; riddleResult = null;
     drawQuizPose('duo-stand');
     const picks = make('div', 'game-picks');
     const pickBtn = (em, title, desc, go) => {
@@ -1884,7 +1831,7 @@
     picks.append(
       pickBtn('💜', QUIZ.intro.title, '질문 10개로 알아보는 나의 독서 취향', quizIntro),
       pickBtn('📚', SHELF.intro.title, '책을 알맞은 분류 칸에 꽂아 보는 퀴즈', shelfIntro),
-      pickBtn('duo-cart', HIDE.intro.title, '책 뒤에 숨은 쌍둥이를 찾아라!', hideIntro),
+      pickBtn('duk-search', RIDDLE.intro.title, '힌트를 듣고 이야기 속 주인공을 맞혀라!', riddleIntro),
     );
     showQuizScreen([make('h2', null, '구구독 구구덕 게임'), make('p', null, '어떤 게임을 해 볼까?'), picks]);
   }
@@ -1901,12 +1848,11 @@
     const you = visitor ? visitor.nameN : '너', hey = visitor ? visitor.call + ', ' : '';
     if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 ${you}! ${you}의 취향을 찾을 수 있게 앞으로 노력할게!`);
     if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${hey}${shelfScore}권이나 제자리에 꽂았어! ${shelfResult.name}. 다음에도 같이 정리하자!`);
-    if (hideResult) {
+    if (riddleResult) {
       const k = ['dok', 'duk'].filter(isOut);
-      if (k.length) say(pick(k), `${hideResult.emoji} ${hey}${hideScore}번이나 우리를 찾았어! ${hideResult.name}! 또 숨바꼭질하자~`);
+      if (k.length) say(pick(k), `${riddleResult.emoji} ${hey}${riddleScore}점! ${riddleResult.name}! 다음엔 다른 주인공으로 또 하자~`);
     }
-    hideRun++;
-    quizResult = null; shelfResult = null; hideResult = null;
+    quizResult = null; shelfResult = null; riddleResult = null;
     gameBtn.focus();
   }
   gameBtn.addEventListener('click', openQuiz);
