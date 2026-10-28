@@ -107,6 +107,11 @@
     border: 12px solid transparent; border-bottom: 0; border-top-color: #fff;
   }
   .bubble .who { display: block; font-size: .8em; margin-bottom: 2px; }
+  /* the name question: warm yellow like the name box below, so the two read together */
+  .bubble.ask { background: #fff1c7; box-shadow: 0 0 0 3px #ffd98f, 0 10px 30px rgba(0,0,0,.35); }
+  .bubble.ask::after { border-top-color: #fff1c7; }
+  .bubble.ask:has(#nameForm) { min-width: min(260px, calc(100vw - 32px)); }
+  body.naming .bubble:not(.ask) { visibility: hidden; }
   /* "같이 게임할래?" yes / no buttons inside a bubble */
   .bubble .invite { display: flex; gap: 8px; margin-top: 8px; }
   .bubble .invite button {
@@ -156,24 +161,24 @@
     flex: none; height: 52px; padding: 0 20px; border-radius: 26px; border: none; cursor: pointer;
     background: #fff; color: #5b3a8a; font: inherit; font-size: 19px;
   }
-  /* the name box: same shape as the message box, warm yellow so it reads as a different question */
+  /* the name box lives inside the yellow question bubble: the name on one line, the two buttons below */
   form[hidden] { display: none; }
+  .bubble #nameForm { flex-wrap: wrap; gap: 6px; margin-top: 8px; pointer-events: auto; white-space: normal; }
   #nameIn {
-    flex: 1; min-width: 0; height: 52px; border-radius: 26px; border: 2px solid #ffd98f;
-    background: rgba(255, 217, 143, .14); color: #fff; padding: 0 20px;
-    font: inherit; font-size: 18px; outline: none; animation: nameGlow 1.6s ease-in-out 2;
+    flex: 1 1 100%; min-width: 0; height: 40px; border-radius: 20px; border: 2px solid #ffd98f;
+    background: #fff; color: #3b2a55; padding: 0 14px; font: inherit; font-size: 16px; outline: none;
   }
-  #nameIn::placeholder { color: rgba(255, 236, 200, .75); font-size: 16px; }
+  #nameIn:focus { border-color: #f0b84a; }
+  #nameIn::placeholder { color: #b39a6e; font-size: 14px; }
   #nameIn.bad { border-color: #ff8fa3; }
   #nameOk, #nameSkip {
-    flex: none; height: 52px; padding: 0 18px; border-radius: 26px; cursor: pointer;
-    font: inherit; font-size: 17px; white-space: nowrap;
+    flex: 1; height: 36px; padding: 0 10px; border-radius: 18px; cursor: pointer;
+    font: inherit; font-size: 15px; white-space: nowrap;
   }
-  #nameOk { border: none; background: #ffd98f; color: #5b3a8a; }
-  #nameSkip { border: 2px solid rgba(255,255,255,.3); background: transparent; color: #fff; }
-  @keyframes nameGlow { 50% { box-shadow: 0 0 0 6px rgba(255, 217, 143, .25); } }
-  /* the game button steps aside while the name box needs the room */
-  body.naming #gameBtn { display: none; }
+  #nameOk { border: none; background: #ffc95c; color: #5b3a8a; }
+  #nameSkip { border: 2px solid #ffd98f; background: #fff; color: #8a6a3a; }
+  /* while the bubble asks, the message bar steps aside */
+  body.naming #controls { display: none; }
 
   /* ----- goodbye ----- */
   body.ending #controls, body.ending #heard { display: none; }
@@ -363,9 +368,6 @@
     .bubble { padding: 10px 12px; font-size: 14px; border-radius: 18px; }
     #say { height: 46px; padding: 0 14px; font-size: 16px; }
     #send { height: 46px; padding: 0 14px; font-size: 16px; }
-    #nameIn { height: 46px; padding: 0 14px; font-size: 16px; }
-    #nameIn::placeholder { font-size: 14px; }
-    #nameOk, #nameSkip { height: 46px; padding: 0 12px; font-size: 15px; }
   }
 </style>
 </head>
@@ -796,7 +798,10 @@
       b = { key, el };
       bubbles.push(b);
     }
+    // new words in the asking bubble (a tap on the twin, say) end the name question
+    if (b.el.contains(nameForm)) { closeNameBox(); if (nameAsk === 'open') nameAsk = 'done'; }
     b.el.innerHTML = '';
+    b.el.classList.remove('ask');
     const who = document.createElement('span');
     who.className = 'who'; who.style.color = CHARS[key].color; who.textContent = CHARS[key].name;
     b.el.append(who, document.createTextNode(text));
@@ -836,11 +841,13 @@
         continue;
       }
       b.el.classList.remove('right');
-      b.el.style.maxWidth = maxW + 'px';
+      // the name question (with its input) may use the whole width; the other bubble hides meanwhile
+      const asking = b.el.classList.contains('ask') && b.el.contains(nameForm);
+      b.el.style.maxWidth = (asking ? Math.min(340, W - 32) : maxW) + 'px';
       // with both twins out, each bubble keeps to its own half so they never overlap
       const half = b.el.offsetWidth / 2;
       let cx = a.cx;
-      if (two) {
+      if (two && !asking) {
         const other = anchorOf(b.key === 'dok' ? 'duk' : 'dok');
         const leftSide = a.cx < other.cx || (a.cx === other.cx && b.key === 'dok');
         cx = leftSide ? Math.min(cx, W / 2 - half - 6) : Math.max(cx, W / 2 + half + 6);
@@ -992,17 +999,21 @@
   // the name box takes the place of the message box while a twin waits for the answer
   const nameForm = document.getElementById('nameForm');
   const nameIn = document.getElementById('nameIn');
-  function openNameBox() {
+  // the name box goes inside the asking twin's yellow bubble, and back to the bar (hidden) afterwards
+  function openNameBox(bubbleEl) {
     document.body.classList.add('naming');
-    form.hidden = true; nameForm.hidden = false;
+    bubbleEl.append(nameForm);
+    nameForm.hidden = false;
     nameIn.value = ''; nameIn.classList.remove('bad');
+    positionBubbles();
     // on a phone, focusing would pop the keyboard up before the visitor reads the question
     if (!touch) nameIn.focus();
   }
   function closeNameBox() {
-    nameForm.hidden = true; form.hidden = false;
-    document.body.classList.remove('naming');
     if (document.activeElement === nameIn) nameIn.blur();
+    nameForm.hidden = true;
+    document.getElementById('controls').append(nameForm);
+    document.body.classList.remove('naming');
   }
   nameForm.addEventListener('submit', e => {
     e.preventDefault();
@@ -1046,8 +1057,11 @@
       if (!out.length) return;
       nameKey = pick(out);
       say(nameKey, pick(NAMES.ask[nameKey]));
+      const asking = bubbles.find(x => x.key === nameKey);
+      if (!asking) return;
+      asking.el.classList.add('ask');
       nameAsk = 'open';
-      openNameBox();
+      openNameBox(asking.el);
     }, delay);
   }
   function greetByName(raw) {
