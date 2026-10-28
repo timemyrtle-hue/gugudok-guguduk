@@ -1,5 +1,6 @@
 // 구구덕의 독서 취향 테스트
-// - questions: 질문과 보기. 보기마다 type(결과 유형)에 1점씩 더해요.
+// - questions: 질문과 보기. 할 때마다 그중 ask개(10개)가 무작위로 나와요.
+//   보기마다 type(결과 유형)에 1점씩 더해요. 보기는 유형마다 하나씩, 6개예요.
 // - results: 가장 점수가 높은 유형이 결과로 나와요. (같으면 그중 하나)
 // - pose: 그 화면에 보여 줄 캐릭터 그림 이름 (images/chars.js 에 있는 이름)
 
@@ -7,23 +8,90 @@ window.QUIZ = {
   intro: {
     pose: 'duk-wave',
     title: '구구덕의 독서 취향 테스트',
-    text: '안녕! 나는 취향 큐레이터 구구덕이야. 질문 10개에 답하면 너의 독서 취향을 찾아 줄게!',
+    text: '안녕! 나는 취향 큐레이터 구구덕이야. 질문 10개에 답하면 너의 독서 취향을 찾아 줄게! 질문은 할 때마다 달라져.',
     start: '테스트 시작하기',
   },
+  ask: 10,
   questions: [
-    { q: '주말 오후, 나는?', pose: 'duk-think', options: [
-      { text: '가 본 적 없는 동네로 탐방 가기', type: 'adv' },
-      { text: '좋아하는 노래 틀어 놓고 일기 쓰기', type: 'emo' },
-      { text: '방탈출 카페에서 수수께끼 풀기', type: 'mys' },
-      { text: '궁금한 걸 끝까지 찾아보기', type: 'know' },
-      { text: '친구랑 웃긴 영상 보며 깔깔대기', type: 'fun' },
+    { q: '도서관 문이 닫혔는데 나 혼자 남았다! 제일 먼저 할 일은?', pose: 'duk-shush', options: [
+      { text: '손전등 들고 서가 끝까지 탐험하기', type: 'adv' },
+      { text: '창가에 앉아 달빛 아래 책 읽기', type: 'emo' },
+      { text: '밤에만 열리는 비밀 서가 찾기', type: 'mys' },
+      { text: '평소 못 읽은 두꺼운 백과사전 읽기', type: 'know' },
+      { text: '빈백 위에서 데굴데굴 굴러다니기', type: 'fun' },
+      { text: '만화책을 탑처럼 쌓아 놓고 읽기', type: 'pic' },
     ] },
-    { q: '영화를 고른다면?', pose: 'duk-search', options: [
-      { text: '마법과 모험이 가득한 판타지', type: 'adv' },
-      { text: '마음이 몽글해지는 성장 영화', type: 'emo' },
-      { text: '마지막에 깜짝 놀라는 반전 스릴러', type: 'mys' },
-      { text: '진짜 있었던 일을 다룬 다큐', type: 'know' },
-      { text: '배꼽 잡는 코미디', type: 'fun' },
+    { q: '책 속으로 딱 한 번 들어갈 수 있다면?', pose: 'duk-think', options: [
+      { text: '용이 사는 판타지 세계', type: 'adv' },
+      { text: '다정한 이웃들이 사는 작은 마을', type: 'emo' },
+      { text: '명탐정의 사건 현장', type: 'mys' },
+      { text: '공룡이 살던 시대의 도감 속', type: 'know' },
+      { text: '모든 게 거꾸로인 엉뚱한 나라', type: 'fun' },
+      { text: '알록달록한 그림책 속 숲', type: 'pic' },
+    ] },
+    { q: '서가에서 책을 뺐더니 쪽지가 툭! 쪽지에 적혀 있으면 좋겠는 말은?', pose: 'duk-search', options: [
+      { text: '"보물은 맨 끝 서가에 있다"', type: 'adv' },
+      { text: '"오늘도 수고했어, 넌 멋져"', type: 'emo' },
+      { text: '"다음 단서는 813 서가에"', type: 'mys' },
+      { text: '"이 책엔 아무도 모르는 지식이 있음"', type: 'know' },
+      { text: '"이 쪽지를 읽으면 방귀가 나온다"', type: 'fun' },
+      { text: '쪽지 가득 그려진 귀여운 낙서', type: 'pic' },
+    ] },
+    { q: '구구독이 북트럭을 밀다가 책을 와르르 쏟았어! 나는?', pose: 'duk-wave', options: [
+      { text: '제일 먼저 달려가서 같이 줍는다', type: 'adv' },
+      { text: '"괜찮아? 안 다쳤어?" 먼저 묻는다', type: 'emo' },
+      { text: '쏟아진 책 중에 수상한 책이 없나 본다', type: 'mys' },
+      { text: '청구기호 순서대로 척척 정리해 준다', type: 'know' },
+      { text: '"책 눈사태다!" 하고 같이 웃는다', type: 'fun' },
+      { text: '표지가 예쁜 책을 하나 골라 구경한다', type: 'pic' },
+    ] },
+    { q: '반납함에 책을 넣었더니 "고마워!" 하고 말을 했다. 그다음 나는?', pose: 'duk-shush', options: [
+      { text: '반납함 안이 어떻게 생겼는지 들여다본다', type: 'adv' },
+      { text: '"나도 고마워, 잘 읽었어" 하고 인사한다', type: 'emo' },
+      { text: '누가 숨어서 말한 건지 주변을 살핀다', type: 'mys' },
+      { text: '어떻게 말을 하는지 원리가 궁금하다', type: 'know' },
+      { text: '책을 하나 더 넣어서 또 말하나 본다', type: 'fun' },
+      { text: '반납함에 웃는 얼굴을 그려 주고 싶다', type: 'pic' },
+    ] },
+    { q: '하루 동안 사서 선생님이 된다면 해 보고 싶은 일은?', pose: 'duk-read', options: [
+      { text: '새로 온 책 상자 가장 먼저 열어 보기', type: 'adv' },
+      { text: '친구에게 꼭 맞는 책 골라 주기', type: 'emo' },
+      { text: '오래 안 돌아온 책의 행방 추적하기', type: 'mys' },
+      { text: '책에 청구기호 붙이고 분류하기', type: 'know' },
+      { text: '도서관에서 깜짝 퀴즈 대회 열기', type: 'fun' },
+      { text: '계절 전시 코너를 예쁘게 꾸미기', type: 'pic' },
+    ] },
+    { q: '도서관에 새로 생겼으면 하는 공간은?', pose: 'duk-think', options: [
+      { text: '미로처럼 생긴 서가', type: 'adv' },
+      { text: '빗소리가 들리는 다락방', type: 'emo' },
+      { text: '비밀번호로 열리는 방탈출 방', type: 'mys' },
+      { text: '직접 해 보는 과학 실험실', type: 'know' },
+      { text: '미끄럼틀로 내려가는 놀이 계단', type: 'fun' },
+      { text: '만화책이 가득한 만화 동굴', type: 'pic' },
+    ] },
+    { q: '내가 책을 낸다면 제목은?', pose: 'duk-music', options: [
+      { text: '『나의 지구 끝 대모험』', type: 'adv' },
+      { text: '『오늘의 나에게 쓰는 편지』', type: 'emo' },
+      { text: '『사라진 도서관 열쇠의 비밀』', type: 'mys' },
+      { text: '『세상의 모든 "왜?" 사전』', type: 'know' },
+      { text: '『방귀 대장의 하루』', type: 'fun' },
+      { text: '『그림으로 그린 우리 동네』', type: 'pic' },
+    ] },
+    { q: '책을 다 읽고 나면 나는?', pose: 'duk-read', options: [
+      { text: '바로 다음 이야기를 찾아 나선다', type: 'adv' },
+      { text: '마음에 남는 문장을 적어 둔다', type: 'emo' },
+      { text: '복선을 확인하러 앞으로 다시 넘긴다', type: 'mys' },
+      { text: '더 알고 싶은 내용을 찾아본다', type: 'know' },
+      { text: '친구한테 웃긴 장면을 흉내 내 준다', type: 'fun' },
+      { text: '좋았던 장면을 그림으로 그려 본다', type: 'pic' },
+    ] },
+    { q: '책을 고를 때 가장 먼저 보는 건?', pose: 'duk-search', options: [
+      { text: '두근거리는 제목', type: 'adv' },
+      { text: '마음에 남는 첫 문장', type: 'emo' },
+      { text: '뒤표지의 수상한 줄거리', type: 'mys' },
+      { text: '목차와 새로 알게 될 내용', type: 'know' },
+      { text: '웃긴 제목이나 말장난', type: 'fun' },
+      { text: '표지 그림과 속 그림', type: 'pic' },
     ] },
     { q: '하나만 가질 수 있다면, 어떤 초능력?', pose: 'duk-think', options: [
       { text: '어디든 갈 수 있는 순간이동', type: 'adv' },
@@ -31,20 +99,7 @@ window.QUIZ = {
       { text: '거짓말을 단번에 알아채기', type: 'mys' },
       { text: '한 번 본 건 다 기억하기', type: 'know' },
       { text: '모두를 웃게 만드는 개그 능력', type: 'fun' },
-    ] },
-    { q: '친구들 사이에서 나는?', pose: 'duk-shush', options: [
-      { text: '새로운 걸 먼저 해 보자는 사람', type: 'adv' },
-      { text: '고민을 잘 들어 주는 사람', type: 'emo' },
-      { text: '숨은 단서를 잘 찾는 눈치왕', type: 'mys' },
-      { text: '물어보면 척척 대답하는 박사', type: 'know' },
-      { text: '분위기를 띄우는 분위기 메이커', type: 'fun' },
-    ] },
-    { q: '책을 고를 때 가장 먼저 보는 건?', pose: 'duk-search', options: [
-      { text: '두근거리는 제목', type: 'adv' },
-      { text: '예쁜 표지와 마음에 남는 문장', type: 'emo' },
-      { text: '뒤표지의 수상한 줄거리', type: 'mys' },
-      { text: '목차와 새로 알게 될 내용', type: 'know' },
-      { text: '그림이나 만화가 있는지', type: 'fun' },
+      { text: '그린 그림이 진짜가 되는 능력', type: 'pic' },
     ] },
     { q: '도서관에서 앉고 싶은 자리는?', pose: 'duk-read', options: [
       { text: '아무도 안 가 본 서가 끝', type: 'adv' },
@@ -52,34 +107,31 @@ window.QUIZ = {
       { text: '조용하고 아늑한 구석 자리', type: 'mys' },
       { text: '넓은 책상이 있는 자리', type: 'know' },
       { text: '푹신한 빈백', type: 'fun' },
+      { text: '그림책 코너의 낮은 소파', type: 'pic' },
     ] },
-    { q: '여행을 간다면 어디로?', pose: 'duk-wave', options: [
-      { text: '지도에 없는 숲속 오두막', type: 'adv' },
-      { text: '바다가 보이는 조용한 마을', type: 'emo' },
-      { text: '비밀의 방이 있는 오래된 성', type: 'mys' },
-      { text: '볼거리가 가득한 박물관', type: 'know' },
-      { text: '신나는 놀이공원', type: 'fun' },
+    { q: '책 속 주인공이 나에게 전화를 걸었다! 누구였으면 좋겠어?', pose: 'duk-wave', options: [
+      { text: '보물 지도를 가진 해적 선장', type: 'adv' },
+      { text: '내 고민을 들어 주는 다정한 친구', type: 'emo' },
+      { text: '도움을 요청하는 명탐정', type: 'mys' },
+      { text: '타임머신을 만든 과학자', type: 'know' },
+      { text: '못 말리는 장난꾸러기', type: 'fun' },
+      { text: '그림책에서 튀어나온 곰 인형', type: 'pic' },
     ] },
-    { q: '하루 중 가장 좋아하는 시간은?', pose: 'duk-think', options: [
-      { text: '새로운 일을 시작하는 아침', type: 'adv' },
-      { text: '노을 지는 저녁', type: 'emo' },
-      { text: '모두 잠든 조용한 밤', type: 'mys' },
-      { text: '집중이 잘 되는 오후', type: 'know' },
-      { text: '친구들이랑 노는 쉬는 시간', type: 'fun' },
+    { q: '하룻밤 사이에 도서관 책이 뒤죽박죽! 범인은 누굴까?', pose: 'duk-search', options: [
+      { text: '책 속에서 탈출한 공룡', type: 'adv' },
+      { text: '친구가 보고 싶어 놀러 간 책들', type: 'emo' },
+      { text: '아직 정체를 모르는 수수께끼 도둑', type: 'mys' },
+      { text: '새 분류법을 시험해 본 로봇 사서', type: 'know' },
+      { text: '숨바꼭질하던 구구독과 구구덕', type: 'fun' },
+      { text: '그림 속에서 빠져나온 고양이', type: 'pic' },
     ] },
-    { q: '선물로 받고 싶은 건?', pose: 'duk-shush', options: [
-      { text: '세계 지도와 나침반', type: 'adv' },
-      { text: '예쁜 엽서와 다이어리', type: 'emo' },
-      { text: '비밀번호 자물쇠 상자', type: 'mys' },
-      { text: '망원경이나 현미경', type: 'know' },
-      { text: '웃긴 캐릭터 굿즈', type: 'fun' },
-    ] },
-    { q: '내가 책 속 주인공이라면?', pose: 'duk-music', options: [
-      { text: '용과 맞서는 용감한 모험가', type: 'adv' },
-      { text: '친구의 마음을 위로하는 단짝', type: 'emo' },
-      { text: '사건을 해결하는 명탐정', type: 'mys' },
-      { text: '세상을 바꾼 발명가', type: 'know' },
-      { text: '모두를 웃게 만드는 장난꾸러기', type: 'fun' },
+    { q: '비 오는 날 도서관에서 나는?', pose: 'duk-shush', options: [
+      { text: '비 오는 정글 탐험 책을 펼친다', type: 'adv' },
+      { text: '빗소리 들으며 시집을 읽는다', type: 'emo' },
+      { text: '으스스한 추리 소설을 고른다', type: 'mys' },
+      { text: '비는 왜 내릴까? 날씨 책을 찾는다', type: 'know' },
+      { text: '친구랑 웃긴 책을 돌려 읽는다', type: 'fun' },
+      { text: '빗방울 그림이 예쁜 그림책을 본다', type: 'pic' },
     ] },
   ],
   results: {
@@ -91,7 +143,7 @@ window.QUIZ = {
     emo: {
       emoji: '💌', name: '감성 수집가형', pose: 'dok-hearts',
       text: '마음에 오래 남는 문장을 모으는 너! 이야기 속 사람들의 마음에 깊이 공감하고, 좋아하는 구절을 따로 적어 두기도 해.',
-      genres: ['에세이', '시집', '성장 소설', '그림책'],
+      genres: ['에세이', '시집', '성장 소설', '편지·일기 형식 이야기'],
     },
     mys: {
       emoji: '🔍', name: '추리 탐정형', pose: 'duk-search',
@@ -106,7 +158,12 @@ window.QUIZ = {
     fun: {
       emoji: '😆', name: '웃음 충전형', pose: 'duk-music',
       text: '읽으면서 깔깔 웃을 수 있는 책이 최고인 너! 재미있게 읽다 보면 어느새 한 권을 다 읽고 있어.',
-      genres: ['만화', '유머 소설', '웹툰 원작 책', '학교생활 이야기'],
+      genres: ['유머 소설', '학교생활 이야기', '엉뚱한 상상 이야기', '말놀이 책'],
+    },
+    pic: {
+      emoji: '🎨', name: '그림 산책가형', pose: 'dok-hearteyes',
+      text: '그림 한 장에서도 이야기를 잔뜩 찾아내는 너! 글과 그림이 어우러진 책을 산책하듯 천천히 구경하는 걸 좋아해.',
+      genres: ['그림책', '만화', '그래픽노블', '도감·사진책'],
     },
   },
   // 결과 화면 아래에 구구덕이 하는 말

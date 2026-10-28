@@ -1566,7 +1566,7 @@
   const quizBody = quizEl.querySelector('.quiz-body');
   const quizPose = quizEl.querySelector('.quiz-pose');
   const gameBtn = document.getElementById('gameBtn');
-  let quizScore = {}, quizResult = null;
+  let quizScore = {}, quizResult = null, quizList = [];
 
   function drawQuizPose(id) {
     const img = IMGS[id];
@@ -1601,13 +1601,15 @@
 
   function quizIntro() {
     quizScore = {}; quizResult = null;
+    // a new set of questions each time (ask of them, in a random order)
+    quizList = shuffle(QUIZ.questions).slice(0, QUIZ.ask || QUIZ.questions.length);
     drawQuizPose(QUIZ.intro.pose);
     const actions = make('div', 'quiz-actions');
     actions.append(button(QUIZ.intro.start, 'primary', () => quizQuestion(0)));
     showQuizScreen([make('h2', null, QUIZ.intro.title), make('p', null, QUIZ.intro.text), actions]);
   }
   function quizQuestion(i) {
-    const item = QUIZ.questions[i], total = QUIZ.questions.length;
+    const item = quizList[i], total = quizList.length;
     drawQuizPose(item.pose);
     const bar = make('div', 'quiz-bar'), fill = make('span');
     fill.style.width = (i / total * 100) + '%';
