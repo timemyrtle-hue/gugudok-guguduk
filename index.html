@@ -1765,10 +1765,8 @@
       b.disabled = true;
       b.classList.add(yes ? 'yes' : 'no');
       b.textContent = `${yes ? '⭕' : '❌'} ${q.q}`;
-      // candidates that would answer the other way can't be the one
-      board.forEach(o => { if (riddleYes(o, q.id) !== yes) dropOut(o); });
-      const left = board.filter(o => !cardOf.get(o).classList.contains('out')).length;
-      words.textContent = `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}${left === 1 ? ' ' + RIDDLE.lastOne : ''}`;
+      // the cards stay as they are: working out who still fits is the visitor's job
+      words.textContent = `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}`;
       showCount();
       if (used >= RIDDLE.limit) finish(false);
     }
@@ -1794,7 +1792,7 @@
     }
     showQuizScreen([
       ...riddleHeader(i), count, talk,
-      make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 눌러 봐!'), cards,
+      make('div', 'riddle-label', '주인공 후보 · 대답을 잘 기억해서 누구인지 알겠으면 눌러 봐!'), cards,
       make('div', 'riddle-label', '질문 고르기 · 질문 하나에 한 고개'), qs,
     ]);
   }
