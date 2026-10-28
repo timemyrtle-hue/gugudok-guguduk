@@ -300,18 +300,35 @@
     font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
     border: 2px solid #c9b3f5; background: #fff; color: #7b3fe0;
   }
-  /* the question box and a few example questions */
-  .riddle-ask { display: flex; gap: 6px; margin: 10px 0 0; }
-  .riddle-ask input {
-    flex: 1; min-width: 0; height: 42px; border-radius: 21px; border: 2px solid #c9b3f5; padding: 0 14px;
-    font: inherit; font-size: 16px; color: #3b2a55; background: #fff; outline: none;
+  /* thought bubbles rising from the twin, then the questions as puffy clouds */
+  .riddle-thought { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 16px; margin: 8px 0 2px; }
+  .riddle-thought .dot { border-radius: 50%; background: #d9cbf6; animation: thinkDot 1.6s ease-in-out infinite; }
+  .riddle-thought .dot:nth-child(1) { width: 6px; height: 6px; }
+  .riddle-thought .dot:nth-child(2) { width: 9px; height: 9px; animation-delay: .2s; }
+  .riddle-thought .dot:nth-child(3) { width: 13px; height: 13px; animation-delay: .4s; }
+  .riddle-clouds {
+    display: flex; flex-wrap: wrap; gap: 14px 8px; justify-content: center;
+    padding: 18px 10px 12px; border-radius: 20px; background: linear-gradient(#efe6ff, #f8f4ff);
   }
-  .riddle-ask input::placeholder { color: #a99bc4; }
-  .riddle-ask input:focus { border-color: #a35cf5; background: #fbf8ff; }
-  .riddle-ask button { flex: none; height: 42px; padding: 0 16px; border: none; border-radius: 21px; cursor: pointer; font: inherit; font-size: 15px; background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff; }
-  .riddle-ask button:disabled, .riddle-ask input:disabled { opacity: .5; }
-  .riddle-examples { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
-  .riddle-examples button { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; cursor: pointer; border: 2px dashed #c9b3f5; background: #fff; color: #7b3fe0; word-break: keep-all; }
+  .riddle-clouds .cloud {
+    position: relative; isolation: isolate; font: inherit; font-size: 14px; line-height: 1.3; color: #5b3b99;
+    padding: 9px 16px; border: none; border-radius: 999px; background: #fff; cursor: pointer; word-break: keep-all;
+    box-shadow: 0 3px 0 #e2d6fa, 0 6px 14px rgba(123, 63, 224, .12);
+    animation: cloudIn .55s cubic-bezier(.3, 1.5, .5, 1) both, cloudFloat 3.4s ease-in-out infinite;
+  }
+  /* two puffs on top make the pill a cloud */
+  .riddle-clouds .cloud::before, .riddle-clouds .cloud::after {
+    content: ''; position: absolute; z-index: -1; border-radius: 50%; background: #fff;
+  }
+  .riddle-clouds .cloud::before { width: 28px; height: 28px; top: -11px; left: 18%; }
+  .riddle-clouds .cloud::after { width: 20px; height: 20px; top: -7px; right: 20%; }
+  .riddle-clouds .cloud:hover, .riddle-clouds .cloud:focus-visible { color: #7b3fe0; outline: 2px solid #c9b3f5; outline-offset: 2px; }
+  .riddle-clouds .cloud:disabled { opacity: .5; cursor: default; }
+  .riddle-none { margin: 0; font-size: 14px; color: #8a76ad; }
+  .riddle-tools .refresh { border-style: dashed; }
+  @keyframes thinkDot { 50% { opacity: .45; transform: translateY(-2px); } }
+  @keyframes cloudIn { from { opacity: 0; transform: translateY(12px) scale(.4); } }
+  @keyframes cloudFloat { 50% { transform: translateY(-3px); } }
   .riddle-tools .chance { border-color: #ffd98f; color: #b07a12; }
   .riddle-tools button:disabled { opacity: .4; cursor: default; }
   .riddle-label { margin: 10px 0 5px; font-size: 13px; color: #8a76ad; text-align: left; }
@@ -1787,17 +1804,6 @@
     bar.append(fill);
     return [make('div', 'quiz-progress', `${riddleLevel.name}  ·  ${i + 1}번째 주인공 / ${total}  ·  점수 ${riddleScore}`), bar];
   }
-  // what a typed message is: a guess at a name ("신데렐라야?"), one of the questions, or not understood
-  function riddleRead(text) {
-    const t = text.trim().replace(/[.!~]+$/, '');
-    // a name on its own, maybe with 혹시, 너, 이야/야/니/맞아 …
-    for (const c of RIDDLE.characters.slice().sort((a, b) => b.name.length - a.name.length)) {
-      const n = c.name.replace(/\s+/g, '\\s*');
-      if (new RegExp(`^(너|혹시|너\\s*혹시)?\\s*${n}\\s*(이야|야|이니|니|이지|지|인가|이에요|예요|맞아|맞지|맞니)?\\s*\\??$`).test(t)) return { guess: c };
-    }
-    const q = RIDDLE.questions.find(x => x.match.test(t));
-    return q ? { q } : {};
-  }
   function riddleRound(i) {
     const { c, board } = riddleRounds[i];
     // the round's host; each answer comes from either twin at random
@@ -1822,20 +1828,26 @@
       if (pose) drawQuizPose(pick(pose));
     };
     say(host, RIDDLE.ask);
-    // the question box
-    const form = make('form', 'riddle-ask');
-    const input = make('input');
-    input.placeholder = RIDDLE.placeholder; input.autocomplete = 'off'; input.maxLength = 40;
-    form.append(input, button('물어보기', 'primary', null));
-    form.querySelector('button').type = 'submit';
-    form.addEventListener('submit', e => { e.preventDefault(); const t = input.value; input.value = ''; hear(t); });
-    // a few example questions not asked yet, in case the visitor is stuck
-    const examples = make('div', 'riddle-examples');
-    const showExamples = () => {
-      examples.replaceChildren(...shuffle(RIDDLE.questions.filter(q => !asked.includes(q))).slice(0, 3)
-        .map(q => button(q.q, null, () => ask(q))));
+    // the questions float up as thought clouds; pick one to ask it
+    const thought = make('div', 'riddle-thought');
+    thought.append(make('span', 'dot'), make('span', 'dot'), make('span', 'dot'));
+    const clouds = make('div', 'riddle-clouds');
+    const showClouds = () => {
+      const left = shuffle(RIDDLE.questions.filter(q => !asked.includes(q))).slice(0, RIDDLE.cloudCount);
+      clouds.replaceChildren(...left.map((q, k) => {
+        const b = button(q.q, 'cloud', () => ask(q));
+        // puff in one after another, then drift gently
+        b.style.animationDelay = `${k * 0.15}s, ${0.7 + k * 0.4}s`;
+        return b;
+      }));
+      if (!left.length) clouds.append(make('p', 'riddle-none', RIDDLE.noMore));
     };
-    showExamples();
+    showClouds();
+    const refreshBtn = button(RIDDLE.refresh, 'refresh', () => { if (!done) showClouds(); });
+    const chanceBtn = button(`✨ ${CHARS[host].name} 찬스`, 'chance', useChance);
+    chanceBtn.disabled = !riddleChance;
+    const tools = make('div', 'riddle-tools');
+    tools.append(refreshBtn, chanceBtn);
     // every question so far, newest on top
     const history = make('ul', 'riddle-log');
     const cards = make('div', 'riddle-board'), cardOf = new Map();
@@ -1845,37 +1857,21 @@
       cardOf.set(o, b);
       cards.append(b);
     });
-    const chanceBtn = button(`✨ ${CHARS[host].name} 찬스`, 'chance', useChance);
-    chanceBtn.disabled = !riddleChance;
-    const tools = make('div', 'riddle-tools');
-    tools.append(chanceBtn);
     const alive = () => board.filter(o => !cardOf.get(o).classList.contains('out'));
 
-    function hear(text) {
-      if (done || !text.trim()) return;
-      const r = riddleRead(text);
-      if (r.guess) {
-        if (board.includes(r.guess)) guess(r.guess);
-        else say(host, RIDDLE.notOnBoard);
-        return;
-      }
-      if (!r.q) { say(host, RIDDLE.notUnderstood, RIDDLE_POSES[host].no); return; }
-      ask(r.q);
-    }
     function ask(q) {
-      if (done) return;
-      if (asked.includes(q)) { say(host, RIDDLE.already); return; }
+      if (done || asked.includes(q)) return;
       used++;
       asked.push(q);
-      // either twin answers; the bubble repeats the question as it was understood
+      // either twin answers
       const yes = riddleAnswer(c, q), key = pick(['dok', 'duk']);
       say(key, `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}`, yes ? RIDDLE_POSES[key].yes : RIDDLE_POSES[key].no);
       history.prepend(make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`));
       showCount();
-      showExamples();
-      if (used >= RIDDLE.limit) finish(false);
+      if (used >= RIDDLE.limit) { finish(false); return; }
+      showClouds();
     }
-    // a tap on a card (or a typed name) is a guess; a wrong one costs two 고개 and that card is crossed out
+    // a tap on a card is a guess; a wrong one costs two 고개 and that card is crossed out
     function guess(o) {
       const b = cardOf.get(o);
       if (done || b.classList.contains('out')) return;
@@ -1897,9 +1893,8 @@
     }
     function finish(ok) {
       done = true;
-      chanceBtn.disabled = true;
-      form.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
-      examples.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      refreshBtn.disabled = true; chanceBtn.disabled = true;
+      clouds.querySelectorAll('button').forEach(x => { x.disabled = true; });
       cards.querySelectorAll('button').forEach(x => { x.disabled = true; });
       const answer = cardOf.get(c);
       answer.classList.remove('out');
@@ -1913,13 +1908,10 @@
     }
 
     showQuizScreen([
-      ...riddleHeader(i), count, hills, talk, form,
-      make('div', 'riddle-label', RIDDLE.examples), examples, tools,
+      ...riddleHeader(i), count, hills, talk, thought, clouds, tools,
       make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 바로 눌러!'), cards,
       make('div', 'riddle-label', '지금까지 물어본 질문과 대답'), history,
     ]);
-    // on a phone the keyboard would cover the cards, so the box waits for a tap there
-    if (!touch) input.focus();
   }
   function riddleFeedback(i, host, c, ok, pts, used, asked) {
     // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a group
