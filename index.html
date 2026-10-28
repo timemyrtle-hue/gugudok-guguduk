@@ -99,7 +99,7 @@
     box-shadow: 0 10px 30px rgba(0,0,0,.35);
     transform: translate(-50%, -100%) scale(.6); opacity: 0;
     transition: opacity .25s, transform .35s cubic-bezier(.3,1.6,.5,1);
-    pointer-events: none;
+    pointer-events: none; white-space: pre-line;
   }
   .bubble.show { opacity: 1; transform: translate(-50%, -100%) scale(1); }
   .bubble::after {
@@ -351,6 +351,7 @@
 <script src="quiz.js"></script>
 <script src="shelf.js"></script>
 <script src="hide.js"></script>
+<script src="names.js"></script>
 <script>
 (() => {
   const shelf = document.getElementById('shelf');
@@ -863,6 +864,103 @@
     }
   }
 
+  // ---------- the visitor's name (names.js) ----------
+  // kept only in memory: a reload, or the next visitor, starts with no name
+  const NAMES = window.NAMES;
+  // nameAsk: 'later' (not asked yet), 'open' (waiting for the answer), 'done' (never ask again)
+  let nameAsk = 'later', nameKey = null, visitor = null;
+  const nameAskAt = 2 + ((Math.random() * 2) | 0);
+  const SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구민진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부';
+  const hasBatchim = ch => { const c = ch.charCodeAt(0) - 0xAC00; return c >= 0 && c < 11172 && c % 28 !== 0; };
+  // the same name always gives the same lines
+  const hashOf = s => { let h = 7; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) | 0; return Math.abs(h); };
+  const pickBy = (a, seed) => a[seed % a.length];
+  const fill = (t, v) => t.replace(/\{(\w+)\}/g, (m, k) => (k in v ? v[k] : m));
+  function nameInfo(raw) {
+    const latin = /^[a-z]+$/i.test(raw);
+    // three syllables starting with a common surname are called by the given name (김서연 → 서연아)
+    const name = !latin && raw.length === 3 && SURNAMES.includes(raw[0]) ? raw.slice(1) : raw;
+    const b = !latin && hasBatchim(name[name.length - 1]);
+    return { raw, latin, name, call: latin ? name : name + (b ? '아' : '야'), nameN: latin ? name : name + (b ? '이' : ''), seed: hashOf(raw) };
+  }
+  const NAME_ENDINGS = /(이에요|예요|에요|입니다|이랍니다|이라고\s*해요?|라고\s*해요?|이라고\s*합니다|라고\s*합니다|이야|이다|이요|이고|야|요|임)$/;
+  const NOT_NAMES = /^(안녕|응|어|네|예|넹|넵|아니|아니요|아뇨|몰라|모름|비밀|싫어|왜|뭐|뭐게|뭘까|뭐야|고마워|감사|좋아|그래|반가워|하이|헬로|나|너|저|누구|이름|별명|구구독|구구덕|hi|hello)$/i;
+  const SECRET_RE = /비밀|몰라|모름|싫어|안\s*알려|말\s*안\s*해|노코멘트|뭐게|맞혀\s*봐/;
+  // finds a name in "내 이름은 서연이야", or, right after we asked, in "서연이에요" / "김서연" / "서연"
+  function findName(text, asked) {
+    let t = text.replace(/[^가-힣a-zA-Z\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    // "김 서연" → "김서연"
+    const spaced = t.match(/^([가-힣]) ([가-힣]{1,3}[가-힣]*)$/);
+    if (spaced && SURNAMES.includes(spaced[1])) t = spaced[1] + spaced[2];
+    let m = t.match(/(?:내|제|나의)\s*이름은\s*([가-힣a-zA-Z]+)/) || t.match(/(?:나를|날|저를)\s*([가-힣a-zA-Z]+?)(?:이라고|라고)\s*불러/);
+    let sure = !!m;
+    if (!m && asked) {
+      m = t.match(/^([가-힣a-zA-Z]+?)(?:이라고|라고)\s*(?:해|합니다|해요|불러)/) || t.match(/^(?:나는|난|저는|전)\s*([가-힣a-zA-Z]+)$/);
+      sure = !!m;
+      if (!m && /^[가-힣a-zA-Z]+$/.test(t)) m = [t, t];
+    }
+    if (!m) return null;
+    const said = m[1];
+    let name = said.replace(NAME_ENDINGS, '') || said;
+    // 서연이 → 서연, 서연아 → 서연 (the friendly 이 / calling 아 after a final consonant)
+    if (/^[가-힣]{2,}[이아]$/.test(name) && hasBatchim(name[name.length - 2])) name = name.slice(0, -1);
+    if (!/^([가-힣]{1,5}|[a-zA-Z]{1,12})$/.test(name) || NOT_NAMES.test(name)) return null;
+    if (window.SWEAR_RE && window.SWEAR_RE.test(name)) return null;
+    // a bare word is a name only if it is not something we already understand ("배고파")
+    if (!sure && name === said && !['other', 'unsure'].includes(topicOf(text))) return null;
+    return name;
+  }
+  // runs fn once the twins are formed and have finished their first words
+  function whenShown(fn, extra) {
+    let tries = 0;
+    (function wait() {
+      if (state === 'shown' && !pendingLine) return void setTimeout(fn, extra);
+      if (++tries < 40) setTimeout(wait, 400);
+    })();
+  }
+  function askName(delay) {
+    whenShown(() => {
+      if (nameAsk !== 'later' || !quizEl.hidden) return;
+      const out = ['dok', 'duk'].filter(isOut);
+      if (!out.length) return;
+      nameKey = pick(out);
+      say(nameKey, pick(NAMES.ask[nameKey]));
+      nameAsk = 'open';
+    }, delay);
+  }
+  function greetByName(raw) {
+    visitor = nameInfo(raw);
+    const v = visitor, out = ['dok', 'duk'].filter(isOut);
+    if (!out.length) return;
+    const asker = nameKey && isOut(nameKey) ? nameKey : pick(out);
+    const other = out.find(k => k !== asker);
+    repose([asker]);
+    if (v.latin) {
+      say(asker, fill(pickBy(NAMES.latin[asker], v.seed), v));
+    } else {
+      // an acrostic: one line per syllable of the name as it was told (김서연 → 삼행시)
+      const syl = [...raw];
+      const lines = syl.map((c, i) => `${c}: ${pickBy(NAMES.lines[c] || [fill(NAMES.fallback, { c })], v.seed + i)}`);
+      // 이행시, 삼행시 … in Korean numbers
+      const intro = fill(pickBy(NAMES.poemIntro[asker], v.seed), { ...v, n: ['', '일', '이', '삼', '사', '오'][syl.length] });
+      say(asker, [intro, ...lines, fill(pickBy(NAMES.poemOutro[asker], v.seed >> 3), v)].join('\n'));
+    }
+    if (!other) return;
+    // the other twin adds something special about this name, or a friendly hello
+    const sp = NAMES.special, mark = (raw.match(/[독덕]/) || [])[0];
+    const line = raw === '구구독' || raw === '구구덕' ? pickBy(sp.twin, v.seed)
+      : mark ? fill(pickBy(sp.dokduk, v.seed), { ...v, c: mark })
+      : raw[0] === '구' ? pickBy(sp.gu, v.seed)
+      : raw.length === 1 ? fill(pickBy(sp.one, v.seed), v)
+      : fill(pickBy(NAMES.other[other], v.seed >> 2), v);
+    setTimeout(() => say(other, line), 1800);
+  }
+  // now and then a reply starts with the visitor's name: "서연아, ..."
+  function withName(text, topic, first) {
+    if (!visitor || !first || /swear|crisis|frustrated/.test(topic) || Math.random() >= NAMES.callChance) return text;
+    return `${visitor.call}, ${text}`;
+  }
+
   function hear(text) {
     text = text.trim();
     if (!text) return;
@@ -873,13 +971,30 @@
       if (NO_RE.test(text)) return answerGame(false);
       invite = 'done';
     }
+    // a name: the answer to our question, or told on its own ("내 이름은 서연이야")
+    if ((state === 'shown' || state === 'idle') && nameAsk !== 'done') {
+      const asked = nameAsk === 'open', found = findName(text, asked);
+      if (found) {
+        nameAsk = 'done'; talks++;
+        if (state === 'idle') { summon(whoFor(text), 'greet'); whenShown(() => greetByName(found), 2600); }
+        else greetByName(found);
+        return;
+      }
+      if (asked) {
+        nameAsk = 'done';
+        if (SECRET_RE.test(text)) { talks++; say(nameKey, pick(NAMES.secret[nameKey])); return; }
+      }
+    }
     let topic = topicOf(text);
     // from the third swear word on, the twins sound more worried than hurt
     if (topic === 'swear' && ++swearCount >= 3) topic = 'swearmany';
+    // the name question comes after the second or third message (not right after a swear word)
+    const askNow = () => nameAsk === 'later' && talks >= nameAskAt && !/swear|crisis/.test(topic);
     if (state === 'idle') {
       if (topic === 'bye') { toast('아직 아무도 나오지 않았어요. 먼저 환영 인사를 건네 볼까요?'); return; }
       talks++;
       summon(whoFor(text), topic);
+      if (askNow()) askName(2800);
       return;
     }
     if (state !== 'shown') return;
@@ -887,14 +1002,16 @@
     // talking to one twin again brings the other out of the dust
     if (!isOut('dok') || !isOut('duk')) {
       summon(['dok', 'duk'], topic);
+      if (askNow()) askName(2800);
       return;
     }
     const named = /구구독|구독|구구덕|구덕|쌍둥이|둘\s*다|모두/.test(text);
     const keys = named ? whoFor(text) : ['dok', 'duk'];
     repose(keys);
-    keys.forEach((k, i) => setTimeout(() => say(k, reply(topic, k, 'chat')), i * 1400));
+    keys.forEach((k, i) => setTimeout(() => say(k, withName(reply(topic, k, 'chat'), topic, i === 0)), i * 1400));
+    if (askNow()) askName(keys.length * 1400 + 1800);
     // swear words get no invitation; it waits for the next friendly message
-    if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, keys.length * 1400 + 1600);
+    else if (talks >= inviteAt && !/swear/.test(topic)) setTimeout(askGame, keys.length * 1400 + 1600);
   }
 
   // with both twins out, each new message changes the picture: sometimes the duo
@@ -1230,7 +1347,7 @@
     const actions = make('div', 'quiz-actions');
     actions.append(button('다시 하기', null, quizIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
     showQuizScreen([
-      make('div', 'quiz-label', '너의 독서 취향은'),
+      make('div', 'quiz-label', `${visitor ? visitor.nameN : '너'}의 독서 취향은`),
       make('div', 'quiz-emoji', res.emoji),
       make('h2', null, res.name),
       make('p', null, res.text),
@@ -1368,7 +1485,7 @@
     const actions = make('div', 'quiz-actions');
     actions.append(button('다시 하기', null, shelfIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
     showQuizScreen([
-      make('div', 'quiz-label', `${shelfRounds.length}문제 중 ${shelfScore}개 정답!`),
+      make('div', 'quiz-label', `${visitor ? visitor.nameN + '는 ' : ''}${shelfRounds.length}문제 중 ${shelfScore}개 정답!`),
       make('div', 'quiz-emoji', res.emoji),
       make('h2', null, res.name),
       make('p', null, res.text),
@@ -1506,7 +1623,7 @@
     const actions = make('div', 'quiz-actions');
     actions.append(button('다시 하기', null, hideIntro), button('다른 게임', null, gamesMenu), button('닫기', 'primary', closeQuiz));
     showQuizScreen([
-      make('div', 'quiz-label', `${HIDE.stages.length}번 중 ${hideScore}번 찾았어!`),
+      make('div', 'quiz-label', `${visitor ? visitor.nameN + '는 ' : ''}${HIDE.stages.length}번 중 ${hideScore}번 찾았어!`),
       make('div', 'quiz-emoji', res.emoji),
       make('h2', null, res.name),
       make('p', null, res.text),
@@ -1554,11 +1671,13 @@
   function closeQuiz() {
     quizEl.hidden = true;
     // the twin who hosted the game cheers the result in the scene too
-    if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 너! 너의 취향을 찾을 수 있게 앞으로 노력할게!`);
-    if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${shelfScore}권이나 제자리에 꽂았어! ${shelfResult.name}. 다음에도 같이 정리하자!`);
+    // with a name, the cheers call the visitor by it
+    const you = visitor ? visitor.nameN : '너', hey = visitor ? visitor.call + ', ' : '';
+    if (quizResult && isOut('duk')) say('duk', `${quizResult.emoji} ${quizResult.name}인 ${you}! ${you}의 취향을 찾을 수 있게 앞으로 노력할게!`);
+    if (shelfResult && isOut('dok')) say('dok', `${shelfResult.emoji} ${hey}${shelfScore}권이나 제자리에 꽂았어! ${shelfResult.name}. 다음에도 같이 정리하자!`);
     if (hideResult) {
       const k = ['dok', 'duk'].filter(isOut);
-      if (k.length) say(pick(k), `${hideResult.emoji} ${hideScore}번이나 우리를 찾았어! ${hideResult.name}! 또 숨바꼭질하자~`);
+      if (k.length) say(pick(k), `${hideResult.emoji} ${hey}${hideScore}번이나 우리를 찾았어! ${hideResult.name}! 또 숨바꼭질하자~`);
     }
     hideRun++;
     quizResult = null; shelfResult = null; hideResult = null;
