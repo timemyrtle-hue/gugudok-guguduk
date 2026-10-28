@@ -1871,11 +1871,13 @@
     thought.append(make('span', 'dot'), make('span', 'dot'), make('span', 'dot'));
     const clouds = make('div', 'riddle-clouds');
     const showClouds = () => {
-      // at least one cloud is a real clue: a question the hidden hero answers 응! to
+      // some clouds are real clues: questions the hidden hero answers 응! to —
+      // two for the first two questions of a round, then at least one
       const rest = shuffle(RIDDLE.questions.filter(q => !asked.includes(q)));
-      const clue = rest.find(q => riddleAnswer(c, q));
-      let left = rest.slice(0, RIDDLE.cloudCount);
-      if (clue && !left.includes(clue)) left = shuffle([clue, ...left.slice(1)]);
+      const want = asked.length < 2 ? (RIDDLE.firstClues || 1) : 1;
+      const clues = rest.filter(q => riddleAnswer(c, q)).slice(0, want);
+      const others = rest.filter(q => !clues.includes(q));
+      const left = shuffle([...clues, ...others.slice(0, RIDDLE.cloudCount - clues.length)]);
       clouds.replaceChildren(...left.map((q, k) => {
         const b = button(q.q, 'cloud', () => pickCloud(q, b));
         // puff in one after another, then drift gently
