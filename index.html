@@ -300,7 +300,18 @@
     font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
     border: 2px solid #c9b3f5; background: #fff; color: #7b3fe0;
   }
-  .riddle-tools .next { border-color: #a35cf5; background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff; }
+  /* the question box and a few example questions */
+  .riddle-ask { display: flex; gap: 6px; margin: 10px 0 0; }
+  .riddle-ask input {
+    flex: 1; min-width: 0; height: 42px; border-radius: 21px; border: 2px solid #c9b3f5; padding: 0 14px;
+    font: inherit; font-size: 16px; color: #3b2a55; background: #fff; outline: none;
+  }
+  .riddle-ask input::placeholder { color: #a99bc4; }
+  .riddle-ask input:focus { border-color: #a35cf5; background: #fbf8ff; }
+  .riddle-ask button { flex: none; height: 42px; padding: 0 16px; border: none; border-radius: 21px; cursor: pointer; font: inherit; font-size: 15px; background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff; }
+  .riddle-ask button:disabled, .riddle-ask input:disabled { opacity: .5; }
+  .riddle-examples { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .riddle-examples button { font: inherit; font-size: 13px; padding: 5px 10px; border-radius: 999px; cursor: pointer; border: 2px dashed #c9b3f5; background: #fff; color: #7b3fe0; word-break: keep-all; }
   .riddle-tools .chance { border-color: #ffd98f; color: #b07a12; }
   .riddle-tools button:disabled { opacity: .4; cursor: default; }
   .riddle-label { margin: 10px 0 5px; font-size: 13px; color: #8a76ad; text-align: left; }
@@ -1740,11 +1751,14 @@
     dok: { ask: ['dok-read', 'dok-wink'], yes: ['dok-wave', 'dok-hearteyes'], no: ['dok-shush', 'dok-read'], win: 'dok-hearts' },
   };
   const riddleYes = (c, id) => Object.prototype.hasOwnProperty.call(c.yes, id);
+  // a question's answer for a character (사람이야? is the opposite of 동물이야?) and the reason behind a yes
+  const riddleAnswer = (c, q) => q.not ? !riddleYes(c, q.not) : riddleYes(c, q.id);
+  const riddleReason = (c, q) => q.not ? q.reason : c.yes[q.id];
   let riddleRounds = [], riddleScore = 0, riddleResult = null, riddleChance = true, riddleLevel = RIDDLE.levels[1];
 
   // the secret character, look-alikes for half the board, and the rest picked at random
   function riddleBoard(c, size) {
-    const alike = o => RIDDLE.questions.filter(q => riddleYes(o, q.id) === riddleYes(c, q.id)).length + Math.random() * 0.9;
+    const alike = o => RIDDLE.questions.filter(q => riddleAnswer(o, q) === riddleAnswer(c, q)).length + Math.random() * 0.9;
     const others = RIDDLE.characters.filter(o => o !== c).map(o => ({ o, s: alike(o) })).sort((a, b) => b.s - a.s);
     const near = Math.floor(size / 2);
     const rest = shuffle(others.slice(near)).slice(0, size - 1 - near);
@@ -1773,6 +1787,17 @@
     bar.append(fill);
     return [make('div', 'quiz-progress', `${riddleLevel.name}  ·  ${i + 1}번째 주인공 / ${total}  ·  점수 ${riddleScore}`), bar];
   }
+  // what a typed message is: a guess at a name ("신데렐라야?"), one of the questions, or not understood
+  function riddleRead(text) {
+    const t = text.trim().replace(/[.!~]+$/, '');
+    // a name on its own, maybe with 혹시, 너, 이야/야/니/맞아 …
+    for (const c of RIDDLE.characters.slice().sort((a, b) => b.name.length - a.name.length)) {
+      const n = c.name.replace(/\s+/g, '\\s*');
+      if (new RegExp(`^(너|혹시|너\\s*혹시)?\\s*${n}\\s*(이야|야|이니|니|이지|지|인가|이에요|예요|맞아|맞지|맞니)?\\s*\\??$`).test(t)) return { guess: c };
+    }
+    const q = RIDDLE.questions.find(x => x.match.test(t));
+    return q ? { q } : {};
+  }
   function riddleRound(i) {
     const { c, board } = riddleRounds[i];
     // the round's host; each answer comes from either twin at random
@@ -1796,41 +1821,63 @@
       words.textContent = text;
       if (pose) drawQuizPose(pick(pose));
     };
+    say(host, RIDDLE.ask);
+    // the question box
+    const form = make('form', 'riddle-ask');
+    const input = make('input');
+    input.placeholder = RIDDLE.placeholder; input.autocomplete = 'off'; input.maxLength = 40;
+    form.append(input, button('물어보기', 'primary', null));
+    form.querySelector('button').type = 'submit';
+    form.addEventListener('submit', e => { e.preventDefault(); const t = input.value; input.value = ''; hear(t); });
+    // a few example questions not asked yet, in case the visitor is stuck
+    const examples = make('div', 'riddle-examples');
+    const showExamples = () => {
+      examples.replaceChildren(...shuffle(RIDDLE.questions.filter(q => !asked.includes(q))).slice(0, 3)
+        .map(q => button(q.q, null, () => ask(q))));
+    };
+    showExamples();
     // every question so far, newest on top
     const history = make('ul', 'riddle-log');
     const cards = make('div', 'riddle-board'), cardOf = new Map();
     board.forEach(o => {
-      const b = button('', null, () => guess(o, b));
+      const b = button('', null, () => guess(o));
       b.append(make('span', 'em', o.emoji || '📖'), make('span', 'nm', o.name));
       cardOf.set(o, b);
       cards.append(b);
     });
-    const nextBtn = button('🎲 다음 질문', 'next', nextQuestion);
     const chanceBtn = button(`✨ ${CHARS[host].name} 찬스`, 'chance', useChance);
     chanceBtn.disabled = !riddleChance;
     const tools = make('div', 'riddle-tools');
-    tools.append(nextBtn, chanceBtn);
+    tools.append(chanceBtn);
     const alive = () => board.filter(o => !cardOf.get(o).classList.contains('out'));
 
-    function nextQuestion() {
+    function hear(text) {
+      if (done || !text.trim()) return;
+      const r = riddleRead(text);
+      if (r.guess) {
+        if (board.includes(r.guess)) guess(r.guess);
+        else say(host, RIDDLE.notOnBoard);
+        return;
+      }
+      if (!r.q) { say(host, RIDDLE.notUnderstood, RIDDLE_POSES[host].no); return; }
+      ask(r.q);
+    }
+    function ask(q) {
       if (done) return;
-      const left = RIDDLE.questions.filter(q => !asked.includes(q));
-      if (!left.length) { say(host, RIDDLE.noMore); nextBtn.disabled = true; return; }
-      // a random question, but one that still tells the remaining cards apart when there is one
-      const a = alive();
-      const useful = left.filter(q => a.some(o => riddleYes(o, q.id)) && a.some(o => !riddleYes(o, q.id)));
-      const q = pick(useful.length ? useful : left);
+      if (asked.includes(q)) { say(host, RIDDLE.already); return; }
       used++;
       asked.push(q);
-      const yes = riddleYes(c, q.id), key = pick(['dok', 'duk']);
+      // either twin answers; the bubble repeats the question as it was understood
+      const yes = riddleAnswer(c, q), key = pick(['dok', 'duk']);
       say(key, `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}`, yes ? RIDDLE_POSES[key].yes : RIDDLE_POSES[key].no);
-      const li = make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`);
-      history.prepend(li);
+      history.prepend(make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`));
       showCount();
+      showExamples();
       if (used >= RIDDLE.limit) finish(false);
     }
-    // a tap on a card is a guess; a wrong one costs two 고개 and that card is crossed out
-    function guess(o, b) {
+    // a tap on a card (or a typed name) is a guess; a wrong one costs two 고개 and that card is crossed out
+    function guess(o) {
+      const b = cardOf.get(o);
       if (done || b.classList.contains('out')) return;
       if (o === c) { finish(true); return; }
       used += RIDDLE.wrongCost;
@@ -1850,7 +1897,9 @@
     }
     function finish(ok) {
       done = true;
-      nextBtn.disabled = true; chanceBtn.disabled = true;
+      chanceBtn.disabled = true;
+      form.querySelectorAll('input, button').forEach(x => { x.disabled = true; });
+      examples.querySelectorAll('button').forEach(x => { x.disabled = true; });
       cards.querySelectorAll('button').forEach(x => { x.disabled = true; });
       const answer = cardOf.get(c);
       answer.classList.remove('out');
@@ -1863,13 +1912,14 @@
       riddleFeedback(i, host, c, ok, pts, used, asked);
     }
 
-    // the first question comes right away
-    nextQuestion();
     showQuizScreen([
-      ...riddleHeader(i), count, hills, talk, tools,
+      ...riddleHeader(i), count, hills, talk, form,
+      make('div', 'riddle-label', RIDDLE.examples), examples, tools,
       make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 바로 눌러!'), cards,
-      make('div', 'riddle-label', '지금까지 나온 질문과 대답'), history,
+      make('div', 'riddle-label', '지금까지 물어본 질문과 대답'), history,
     ]);
+    // on a phone the keyboard would cover the cards, so the box waits for a tap there
+    if (!touch) input.focus();
   }
   function riddleFeedback(i, host, c, ok, pts, used, asked) {
     // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a group
@@ -1880,12 +1930,12 @@
       ? `${pick(RIDDLE.right)} ${me} ${c.about} (${used}고개 · ${'⭐'.repeat(pts)} +${pts}점)`
       : `${RIDDLE.timeUp} ${me} ${c.about}`));
     // 정답 확인표: every question asked, with the answer and the reason behind a yes
-    const facts = asked.length ? asked : RIDDLE.questions.filter(q => riddleYes(c, q.id)).slice(0, 3);
+    const facts = asked.length ? asked : RIDDLE.questions.filter(q => !q.not && riddleYes(c, q.id)).slice(0, 3);
     const check = make('ul', 'riddle-check');
     facts.forEach(q => {
-      const yes = riddleYes(c, q.id);
+      const yes = riddleAnswer(c, q);
       const li = make('li', yes ? 'yes' : 'no');
-      li.append(make('b', null, `${yes ? '⭕' : '❌'} ${q.q}`), document.createTextNode(yes ? ` → ${c.yes[q.id]}` : ' → 아니야'));
+      li.append(make('b', null, `${yes ? '⭕' : '❌'} ${q.q}`), document.createTextNode(yes ? ` → ${riddleReason(c, q)}` : ' → 아니야'));
       check.append(li);
     });
     const actions = make('div', 'quiz-actions');
