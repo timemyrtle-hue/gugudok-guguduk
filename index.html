@@ -1468,6 +1468,8 @@
     // remember the tallest height at this width: that is the screen without a keyboard
     if (W !== lastW) { fullH = H; lastW = W; } else fullH = Math.max(fullH, H);
     document.body.classList.toggle('kbd', keyboardOpen());
+    // the full hint is cut off on a phone, so phones get the short one
+    input.placeholder = W <= 600 ? '환영의 말을 적어주세요' : '구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요';
     for (const c of [shelf, stage]) { c.width = W * DPR; c.height = H * DPR; c.style.width = W + 'px'; c.style.height = H + 'px'; }
     drawShelf();
     particles.forEach(p => { const [x, y] = randomIdlePos(); p.hx = x; p.hy = y; if (state === 'idle') { p.x = x; p.y = y; } });
