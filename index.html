@@ -288,27 +288,14 @@
   .riddle-levels button { display: flex; flex-direction: column; align-items: center; gap: 2px; min-width: 96px; }
   .riddle-levels b { font-weight: normal; font-size: 17px; }
   .riddle-levels small { font-size: 12px; color: #8a76ad; }
-  .riddle-count {
-    display: inline-block; margin: 0 0 6px; padding: 3px 12px; border-radius: 999px;
-    background: #a35cf5; color: #fff; font-size: 13px;
-  }
-  /* twenty little hills: the ones already crossed turn pale */
-  .riddle-hills { display: flex; gap: 3px; justify-content: center; margin: 0 0 10px; }
-  .riddle-hills i { width: 11px; height: 9px; border-radius: 6px 6px 1px 1px; background: #5fd3b5; transition: background .3s; }
-  .riddle-hills i.used { background: #e5dcfa; }
-  .riddle-tools { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin: 10px 0 2px; }
-  .riddle-tools button {
-    font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 999px; cursor: pointer;
-    border: 2px solid #c9b3f5; background: #fff; color: #7b3fe0;
-  }
   /* both twins answer together: a picture each and a stamp — 응! or 아니! */
-  .riddle-answer { margin-top: 4px; padding: 10px 10px 8px; border-radius: 18px; background: #f7f2ff; }
-  .riddle-q { min-height: 21px; font-size: 15px; line-height: 1.4; color: #3b2a55; word-break: keep-all; }
-  .riddle-twins { display: flex; justify-content: center; gap: 18px; margin-top: 6px; }
+  .riddle-answer { margin-top: 6px; padding: 8px 8px 6px; border-radius: 18px; background: #f7f2ff; }
+  .riddle-q { min-height: 20px; font-size: 15px; line-height: 1.35; color: #3b2a55; word-break: keep-all; }
+  .riddle-twins { display: flex; justify-content: center; gap: 16px; margin-top: 4px; }
   .riddle-twins .twin { display: flex; align-items: center; gap: 4px; }
-  .riddle-twins img { height: 84px; width: auto; }
+  .riddle-twins img { height: 64px; width: auto; }
   .riddle-twins .stamp {
-    font-size: 21px; line-height: 1; padding: 6px 10px; border-radius: 14px; white-space: nowrap;
+    font-size: 18px; line-height: 1; padding: 5px 9px; border-radius: 12px; white-space: nowrap;
     border: 3px solid #d9cbf6; background: #fff; color: #7b3fe0; transform: rotate(-6deg);
   }
   .riddle-twins .twin + .twin .stamp { transform: rotate(6deg); }
@@ -319,68 +306,81 @@
   @keyframes stampPop { from { opacity: 0; transform: scale(.3) rotate(-24deg); } }
   @keyframes twinHop { 40% { transform: translateY(-8px); } }
   /* thought bubbles rising from the twins up to the question clouds */
-  .riddle-thought { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 16px; margin: 8px 0 2px; }
+  .riddle-thought { display: flex; gap: 6px; justify-content: center; align-items: flex-end; height: 13px; margin: 5px 0 2px; }
   .riddle-thought .dot { border-radius: 50%; background: #d9cbf6; animation: thinkDot 1.6s ease-in-out infinite; }
-  .riddle-thought .dot:nth-child(1) { width: 6px; height: 6px; }
-  .riddle-thought .dot:nth-child(2) { width: 9px; height: 9px; animation-delay: .2s; }
-  .riddle-thought .dot:nth-child(3) { width: 13px; height: 13px; animation-delay: .4s; }
-  .riddle-clouds {
-    display: flex; flex-wrap: wrap; gap: 6px 4px; justify-content: center; align-items: flex-start;
-    padding: 12px 6px 10px; border-radius: 20px; background: linear-gradient(#dff1ff, #f3ecff);
-  }
-  /* a real cloud: bumpy top, round bottom (the shape stretches with the words) */
+  .riddle-thought .dot:nth-child(1) { width: 5px; height: 5px; }
+  .riddle-thought .dot:nth-child(2) { width: 8px; height: 8px; animation-delay: .2s; }
+  .riddle-thought .dot:nth-child(3) { width: 11px; height: 11px; animation-delay: .4s; }
+  /* the sky: question clouds, with the two small buttons underneath; after a round the result shows here */
+  .riddle-sky { padding: 6px 6px 8px; border-radius: 20px; background: linear-gradient(#dff1ff, #f3ecff); }
+  .riddle-sky.done { padding: 10px; background: #f7f2ff; text-align: left; }
+  .riddle-clouds { display: flex; flex-wrap: wrap; gap: 2px 6px; justify-content: center; align-items: flex-start; }
+  /* a real cloud: bumpy top, round bottom (the shape stretches with the words); two in a row */
   .riddle-clouds .cloud {
-    font: inherit; font-size: 14px; line-height: 1.3; color: #4a3a75; word-break: keep-all;
-    min-width: 128px; max-width: 200px; padding: 26px 26px 16px; border: none; cursor: pointer;
+    flex: 0 1 47%; min-width: 0; font: inherit; font-size: 13px; line-height: 1.3; color: #4a3a75; word-break: keep-all;
+    padding: 22px 16px 12px; border: none; cursor: pointer;
     background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 100' preserveAspectRatio='none'%3E%3Cpath d='M40 92C14 92 4 74 17 60C7 41 27 26 44 34C50 13 79 7 93 24C105 5 137 8 143 30C161 20 188 33 181 53C197 61 193 90 167 92Z' fill='white' stroke='%23dfd3fa' stroke-width='2' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
-    filter: drop-shadow(0 5px 6px rgba(110, 90, 200, .16));
+    filter: drop-shadow(0 4px 5px rgba(110, 90, 200, .16));
     animation: cloudIn .6s cubic-bezier(.3, 1.5, .5, 1) both, cloudFloat 3.6s ease-in-out infinite;
   }
   /* a little scattered, like clouds in the sky */
-  .riddle-clouds .cloud:nth-child(2) { margin-top: 12px; font-size: 13px; }
-  .riddle-clouds .cloud:nth-child(3) { margin-top: 4px; }
-  .riddle-clouds .cloud:nth-child(4) { margin-top: 14px; font-size: 13px; }
+  .riddle-clouds .cloud:nth-child(2) { margin-top: 8px; }
+  .riddle-clouds .cloud:nth-child(3) { margin-left: 4%; }
+  .riddle-clouds .cloud:nth-child(4) { margin-top: 6px; }
   .riddle-clouds .cloud:hover, .riddle-clouds .cloud:focus-visible { color: #7b3fe0; outline: none; filter: drop-shadow(0 6px 8px rgba(110, 90, 200, .3)); }
   .riddle-clouds .cloud.picked { animation: cloudPick .3s ease-out forwards; }
   .riddle-clouds .cloud:disabled { opacity: .5; cursor: default; }
-  .riddle-none { margin: 0; font-size: 14px; color: #8a76ad; }
+  .riddle-none { margin: 6px 0; font-size: 14px; color: #8a76ad; }
+  .riddle-tools { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 4px; }
+  .riddle-tools button {
+    font: inherit; font-size: 13px; padding: 5px 12px; border-radius: 999px; cursor: pointer;
+    border: 2px solid #c9b3f5; background: rgba(255,255,255,.85); color: #7b3fe0;
+  }
   .riddle-tools .refresh { border-style: dashed; }
+  .riddle-tools .chance { border-color: #ffd98f; color: #b07a12; }
+  .riddle-tools button:disabled { opacity: .4; cursor: default; }
   @keyframes thinkDot { 50% { opacity: .45; transform: translateY(-2px); } }
   @keyframes cloudIn { from { opacity: 0; transform: translateY(12px) scale(.4); } }
   @keyframes cloudFloat { 50% { transform: translateY(-3px); } }
   @keyframes cloudPick { to { opacity: 0; transform: scale(1.18); } }
-  .riddle-tools .chance { border-color: #ffd98f; color: #b07a12; }
-  .riddle-tools button:disabled { opacity: .4; cursor: default; }
-  .riddle-label { margin: 10px 0 5px; font-size: 13px; color: #8a76ad; text-align: left; }
+  .riddle-label { margin: 8px 0 4px; font-size: 13px; color: #8a76ad; text-align: left; }
   /* the candidate cards: a tap is a guess; wrong ones are crossed out */
   .riddle-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 5px; }
   .riddle-board button {
     display: flex; flex-direction: column; align-items: center; gap: 2px;
-    font: inherit; font-size: 13px; line-height: 1.2; padding: 7px 4px; border-radius: 12px; cursor: pointer;
+    font: inherit; font-size: 13px; line-height: 1.2; padding: 6px 4px; border-radius: 12px; cursor: pointer;
     border: 2px solid #e5dcfa; background: #fff; color: #3b2a55; word-break: keep-all;
     transition: opacity .25s, background .25s, transform .25s;
   }
-  .riddle-board .em { font-size: 24px; line-height: 1; }
-  .riddle-board button.out { opacity: .4; background: #ede7f6; transform: scale(.94); }
-  .riddle-board button.out .em { filter: grayscale(1); }
+  .riddle-board button.out { opacity: .4; background: #ede7f6; transform: scale(.94); cursor: default; }
   .riddle-board button.out .nm { text-decoration: line-through; }
-  .riddle-board button.out { cursor: default; }
   .riddle-board button.right { opacity: 1; transform: scale(1.06); background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
-  .riddle-board button.right .em { filter: none; }
   .riddle-board button.right .nm { text-decoration: none; }
-  /* every question asked so far, newest on top */
-  .riddle-log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; text-align: left; font-size: 14px; }
+  /* folded lists: the questions asked so far, and after a round the 정답 확인표 */
+  .riddle-fold { margin-top: 8px; text-align: left; }
+  .riddle-fold summary { cursor: pointer; font-size: 13px; color: #7b3fe0; padding: 4px 2px; }
+  .riddle-fold[open] summary { margin-bottom: 4px; }
+  .riddle-log { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 3px; font-size: 14px; }
   .riddle-log li { padding: 4px 10px; border-radius: 10px; word-break: keep-all; }
   .riddle-log li.yes { background: #dff7e8; color: #1d6b4c; }
   .riddle-log li.no { background: #f3f3f3; color: #888; }
-  /* after a round: each question asked, with the answer and why */
-  .riddle-check { list-style: none; padding: 0; margin: 0; text-align: left; font-size: 14px; line-height: 1.45; }
+  .riddle-check { list-style: none; padding: 0; margin: 0; font-size: 14px; line-height: 1.45; }
   .riddle-check li { padding: 5px 2px; border-bottom: 1px dashed #e5dcfa; word-break: keep-all; }
   .riddle-check b { font-weight: normal; color: #3b2a55; }
   .riddle-check li.yes { color: #1d6b4c; }
   .riddle-check li.no { color: #999; }
+  .riddle-sky.done .quiz-actions { margin-top: 8px; }
   .riddle-met { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 4px; }
   .riddle-met span { background: #f3ecff; color: #5b3b99; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
+  /* on a phone the whole round fits on one screen */
+  @media (max-width: 600px) {
+    .riddle-twins img { height: 54px; }
+    .riddle-twins .stamp { font-size: 16px; padding: 4px 8px; }
+    .riddle-q { font-size: 14px; }
+    .riddle-clouds .cloud { font-size: 12px; padding: 20px 12px 10px; }
+    .riddle-board { grid-template-columns: repeat(4, 1fr); gap: 4px; }
+    .riddle-board button { font-size: 11px; padding: 5px 2px; border-radius: 10px; }
+  }
 
   /* ----- 구구독의 책장 정리 대작전 ----- */
   .shelf-book {
@@ -1805,7 +1805,9 @@
     riddleScore = 0; riddleResult = null; riddleChance = true;
     drawQuizPose(RIDDLE.intro.pose);
     const levels = make('div', 'quiz-actions riddle-levels');
-    RIDDLE.levels.forEach(lv => {
+    // a phone has room for 8 cards without scrolling, so 어려움 (12) is left out there
+    const phone = matchMedia('(max-width: 600px)').matches;
+    RIDDLE.levels.filter(lv => !(phone && lv.notOnPhone)).forEach(lv => {
       const b = button('', null, () => riddleStart(lv));
       b.append(make('b', null, lv.name), make('small', null, lv.desc));
       levels.append(b);
@@ -1837,16 +1839,9 @@
     const { c, board } = riddleRounds[i];
     // the twins answer side by side below, so the single picture at the top steps aside
     quizPose.hidden = true;
+    // 고개 used so far: not shown, but after twenty the answer is revealed
     let used = 0, done = false;
     const asked = [];
-    // 남은 고개: a number and a row of twenty little hills
-    const count = make('div', 'riddle-count'), hills = make('div', 'riddle-hills');
-    for (let k = 0; k < RIDDLE.limit; k++) hills.append(make('i'));
-    const showCount = () => {
-      count.textContent = `남은 고개 ${Math.max(0, RIDDLE.limit - used)}`;
-      [...hills.children].forEach((h, k) => h.classList.toggle('used', k < used));
-    };
-    showCount();
     // both twins, each with a stamp: 응! / 아니! (or ? while waiting)
     const panel = make('div', 'riddle-answer'), line = make('div', 'riddle-q');
     const twinsRow = make('div', 'riddle-twins'), twin = {};
@@ -1891,12 +1886,17 @@
     chanceBtn.disabled = !riddleChance;
     const tools = make('div', 'riddle-tools');
     tools.append(refreshBtn, chanceBtn);
-    // every question so far, newest on top
+    // the sky holds the clouds and the two buttons; after the round the result shows here instead
+    const sky = make('div', 'riddle-sky');
+    sky.append(clouds, tools);
+    // every question so far, newest on top, folded away until opened
     const history = make('ul', 'riddle-log');
+    const fold = make('details', 'riddle-fold'), foldTitle = make('summary', null, `${RIDDLE.askedTitle} (0)`);
+    fold.append(foldTitle, history);
     const cards = make('div', 'riddle-board'), cardOf = new Map();
     board.forEach(o => {
       const b = button('', null, () => guess(o));
-      b.append(make('span', 'em', o.emoji || '📖'), make('span', 'nm', o.name));
+      b.append(make('span', 'nm', o.name));
       cardOf.set(o, b);
       cards.append(b);
     });
@@ -1916,7 +1916,7 @@
       const yes = riddleAnswer(c, q), A = RIDDLE.answers;
       show(q.q, yes ? 'yes' : 'no', { dok: pick(A.dok[yes ? 'yes' : 'no']), duk: pick(A.duk[yes ? 'yes' : 'no']) });
       history.prepend(make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`));
-      showCount();
+      foldTitle.textContent = `${RIDDLE.askedTitle} (${asked.length})`;
       if (used >= RIDDLE.limit) { finish(false); return; }
       showClouds();
     }
@@ -1928,7 +1928,6 @@
       used += RIDDLE.wrongCost;
       b.classList.add('wrong', 'out');
       show(pick(RIDDLE.wrongGuess), 'no', { dok: '땡!', duk: '땡!' });
-      showCount();
       if (used >= RIDDLE.limit) finish(false);
     }
     // once a game: three wrong cards are crossed out
@@ -1952,16 +1951,16 @@
       const pts = ok ? (RIDDLE.scores.find(s => used <= s.upTo) || { pts: 1 }).pts : 0;
       riddleScore += pts;
       show(ok ? pick(RIDDLE.right) : RIDDLE.timeUp, ok ? 'win' : 'no', ok ? { dok: '정답!', duk: '최고!' } : { dok: '아쉽다!', duk: '다음엔!' });
-      riddleFeedback(i, i % 2 ? 'dok' : 'duk', c, ok, pts, used, asked);
+      riddleFeedback(i, i % 2 ? 'dok' : 'duk', c, ok, pts, used, asked, sky);
     }
 
     showQuizScreen([
-      ...riddleHeader(i), count, hills, panel, thought, clouds, tools,
-      make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 바로 눌러!'), cards,
-      make('div', 'riddle-label', '지금까지 물어본 질문과 대답'), history,
+      ...riddleHeader(i), panel, thought, sky,
+      make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 바로 눌러!'), cards, fold,
     ]);
   }
-  function riddleFeedback(i, host, c, ok, pts, used, asked) {
+  // the result takes the place of the clouds (slot), so nothing grows below the cards
+  function riddleFeedback(i, host, c, ok, pts, used, asked, slot) {
     // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a group
     const who = c.book === c.name ? '주인공' : c.name;
     const me = `${c.we ? '우리는' : '나는'} 「${c.book}」의 ${who}${hasBatchim(who[who.length - 1]) ? '이야' : '야'}!`;
@@ -1982,16 +1981,19 @@
     const lastRound = i + 1 >= riddleRounds.length;
     const nextBtn = button(lastRound ? '결과 보기' : '다음 주인공', 'primary', () => lastRound ? riddleShowResult() : riddleRound(i + 1));
     actions.append(nextBtn);
-    quizBody.append(box, make('div', 'riddle-label', asked.length ? '정답 확인표 · 나온 질문의 대답과 이유' : '이 주인공은 이랬어'), check, actions);
+    // the 정답 확인표 is folded; open it to see why each answer was 응 or 아니
+    const fold = make('details', 'riddle-fold');
+    fold.append(make('summary', null, asked.length ? RIDDLE.checkTitle : '이 주인공은 이랬어'), check);
+    slot.classList.add('done');
+    slot.replaceChildren(box, fold, actions);
     nextBtn.focus({ preventScroll: true });
-    box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   function riddleShowResult() {
     const res = riddleResult = RIDDLE.results.find(r => riddleScore >= r.min);
     drawQuizPose(res.pose);
     // the characters met in this game, so the visitor can look for their books
     const met = make('div', 'riddle-met');
-    riddleRounds.forEach(({ c }) => met.append(make('span', null, `${c.emoji || ''} ${c.name === c.book ? `「${c.book}」` : `${c.name} · 「${c.book}」`}`)));
+    riddleRounds.forEach(({ c }) => met.append(make('span', null, c.name === c.book ? `「${c.book}」` : `${c.name} · 「${c.book}」`)));
     const box = make('div', 'quiz-say');
     box.append(make('b', null, '구구독 구구덕'), document.createTextNode(RIDDLE.outro));
     const actions = make('div', 'quiz-actions');
