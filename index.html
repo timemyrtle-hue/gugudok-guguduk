@@ -174,6 +174,41 @@
   @keyframes nameGlow { 50% { box-shadow: 0 0 0 6px rgba(255, 217, 143, .25); } }
   /* the game button steps aside while the name box needs the room */
   body.naming #gameBtn { display: none; }
+
+  /* ----- goodbye ----- */
+  body.ending #controls, body.ending #heard { display: none; }
+  #endScreen {
+    position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center;
+    padding: 16px; background: rgba(12, 8, 24, .55); animation: endFade .8s ease-out both;
+  }
+  #endScreen[hidden] { display: none; }
+  .end-card {
+    width: min(460px, 100%); max-height: 100%; overflow-y: auto; text-align: center;
+    background: #fff; color: #3b2a55; border-radius: 28px; padding: 22px 22px 18px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.45); animation: endPop .6s .2s cubic-bezier(.3,1.5,.5,1) both;
+  }
+  .end-twins { display: flex; justify-content: center; align-items: flex-end; gap: 6px; height: 170px; }
+  .end-twins img { height: 100%; width: auto; animation: endWave 2.4s ease-in-out infinite; transform-origin: 50% 100%; }
+  .end-twins img + img { animation-delay: 1.2s; }
+  .end-sub { margin-top: 8px; font-family: 'Gaegu', sans-serif; font-size: 18px; color: #8a76ad; letter-spacing: 2px; }
+  .end-card h2 { margin: 0; font-size: 36px; font-weight: normal; letter-spacing: 3px; }
+  .end-card h2 .dok { color: var(--dok); }
+  .end-card h2 .duk { color: var(--duk); }
+  #endText { margin: 12px 0 4px; font-size: 19px; line-height: 1.45; word-break: keep-all; }
+  .end-thanks { margin: 0 0 14px; font-size: 16px; color: #6f5c92; }
+  #endAgain {
+    font: inherit; font-size: 17px; cursor: pointer; border: none; border-radius: 999px; padding: 12px 28px;
+    background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff;
+  }
+  #endCount { margin-top: 10px; font-size: 13px; color: #8a76ad; }
+  @keyframes endFade { from { opacity: 0; } }
+  @keyframes endPop { from { opacity: 0; transform: translateY(20px) scale(.9); } }
+  @keyframes endWave { 50% { transform: translateY(-6px) rotate(-3deg); } }
+  @media (max-width: 600px) {
+    .end-twins { height: 130px; }
+    .end-card h2 { font-size: 30px; }
+    #endText { font-size: 17px; }
+  }
   #toast {
     position: fixed; left: 50%; top: 150px; transform: translateX(-50%); z-index: 6;
     background: rgba(0,0,0,.6); padding: 10px 18px; border-radius: 12px; font-size: 16px;
@@ -371,6 +406,22 @@
     <button id="nameOk" type="submit">알려 주기</button>
     <button id="nameSkip" type="button">비밀이야</button>
   </form>
+</div>
+
+<!-- after the 10th message the twins say goodbye and this end screen appears -->
+<div id="endScreen" hidden>
+  <div class="end-card" role="dialog" aria-label="끝 인사">
+    <div class="end-twins">
+      <img id="endDok" alt="손 흔드는 구구독">
+      <img id="endDuk" alt="손 흔드는 구구덕">
+    </div>
+    <div class="end-sub">구미도서관 캐릭터</div>
+    <h2><span class="dok">구구독</span> <span class="duk">구구덕</span></h2>
+    <p id="endText"></p>
+    <p class="end-thanks">함께해 줘서 고마워요! 💙💜</p>
+    <button id="endAgain" type="button">처음부터 다시</button>
+    <div id="endCount"></div>
+  </div>
 </div>
 
 <script src="images/chars.js"></script>
@@ -854,14 +905,14 @@
   const maskSwears = t => SWEAR_ALL ? t.replace(SWEAR_ALL, m => '♡'.repeat(Math.min(m.replace(/\s/g, '').length, 3))) : t;
   let swearCount = 0;
 
-  // after 6–8 messages one twin asks once "같이 게임할래?" with yes / no buttons
+  // after 6–7 messages one twin asks once "같이 게임할래?" with yes / no buttons
   // invite: 'later' (not asked yet), 'open' (waiting for an answer), 'done' (never again)
   let talks = 0, invite = 'later', inviteKey = null;
-  const inviteAt = 6 + ((Math.random() * 3) | 0);
+  const inviteAt = 6 + ((Math.random() * 2) | 0);
   const YES_RE = /^\s*(응|어|예|네|넵|넹|좋아|좋지|그래|ㅇㅇ|ㅇㅋ|오케이|콜|하자|할래|할게|고고)/;
   const NO_RE = /^\s*(아니|아뇨|싫어|안\s*해|안\s*할|노|ㄴㄴ|다음에|나중에|됐어)/;
   function askGame() {
-    if (invite !== 'later' || state !== 'shown' || !quizEl.hidden) return;
+    if (ending || invite !== 'later' || state !== 'shown' || !quizEl.hidden) return;
     const keys = ['dok', 'duk'].filter(isOut);
     if (!keys.length) return;
     inviteKey = pick(keys);
@@ -896,7 +947,7 @@
   const NAMES = window.NAMES;
   // nameAsk: 'later' (not asked yet), 'open' (waiting for the answer), 'done' (never ask again)
   let nameAsk = 'later', nameKey = null, visitor = null;
-  const nameAskAt = 2 + ((Math.random() * 2) | 0);
+  const nameAskAt = 3 + ((Math.random() * 2) | 0);
   const SURNAMES = '김이박최정강조윤장임한오서신권황안송류전홍고문양손배백허유남심노하곽성차주우구민진지엄채원천방공현함변염여추도소석선설마길연위표명기반왕금옥육인맹제모탁국어은편용예경봉사부';
   const hasBatchim = ch => { const c = ch.charCodeAt(0) - 0xAC00; return c >= 0 && c < 11172 && c % 28 !== 0; };
   // the same name always gives the same lines
@@ -970,12 +1021,14 @@
     showHeard(text);
     // let a phone keyboard close first so the twins have the whole screen
     setTimeout(() => greetByName(found), touch ? 350 : 0);
+    maybeEnd();
   });
   function keepSecret() {
     nameAsk = 'done'; talks++;
     closeNameBox();
     const k = nameKey && isOut(nameKey) ? nameKey : ['dok', 'duk'].find(isOut);
     if (k) say(k, pick(NAMES.secret[k]));
+    maybeEnd();
   }
   document.getElementById('nameSkip').addEventListener('click', keepSecret);
   // runs fn once the twins are formed and have finished their first words
@@ -988,7 +1041,7 @@
   }
   function askName(delay) {
     whenShown(() => {
-      if (nameAsk !== 'later' || !quizEl.hidden) return;
+      if (ending || nameAsk !== 'later' || !quizEl.hidden) return;
       const out = ['dok', 'duk'].filter(isOut);
       if (!out.length) return;
       nameKey = pick(out);
@@ -1030,7 +1083,81 @@
     return `${visitor.call}, ${text}`;
   }
 
+  // ---------- goodbye after the 10th message ----------
+  // the twins say goodbye, scatter back into dust, and the end screen takes over
+  const END_AT = 10, END_LINE = '앞으로도 구미도서관 캐릭터 구구독 구구덕을 많이 사랑해 줘!';
+  let ending = false;
+  function maybeEnd() {
+    if (ending || talks < END_AT) return;
+    ending = true;
+    (function waitTurn() {
+      // a question still waiting for its answer, or a game in play, comes first
+      const busy = state !== 'shown' || pendingLine || nameAsk === 'open' || invite === 'open' || !quizEl.hidden;
+      if (busy) return void setTimeout(waitTurn, 500);
+      // no more typing: leave time to read the last answer, then say goodbye
+      document.body.classList.add('ending');
+      setTimeout(farewell, 2600);
+    })();
+  }
+  function farewell() {
+    const out = ['dok', 'duk'].filter(isOut);
+    const hey = visitor ? visitor.call + ', ' : '';
+    say(out[0], hey + END_LINE);
+    if (out[1]) setTimeout(() => say(out[1], '우리 또 만나~ 도서관에서 기다릴게! 💜'), 1500);
+    setTimeout(startLeave, out[1] ? 5200 : 3800);
+  }
+  // the reverse of the gathering: every twin breaks into dust that drifts up and fades
+  function startLeave() {
+    bubbles.forEach(b => b.el.remove());
+    bubbles = [];
+    title.classList.remove('show');
+    let targets = [];
+    for (const s of shown) targets = targets.concat(sampleTargets(s.img, s.dx, s.y, s.w, s.h, 2600 / shown.length + 600));
+    ensureParticles(targets.length);
+    particles.forEach((p, i) => {
+      const t = targets[i];
+      if (!t) { p.a = 0; p.ta = 0; p.sx = p.tx = p.cx = p.x; p.sy = p.ty = p.cy = p.y; return; }
+      p.sx = p.x = t.x; p.sy = p.y = t.y; p.scol = t.col; p.tcol = DUST; p.col = t.col.slice(); p.ta = 1; p.a = 1;
+      p.tx = t.x + (Math.random() - 0.5) * W * 0.5;
+      p.ty = t.y - H * (0.25 + Math.random() * 0.45);
+      p.cx = t.x + (Math.random() - 0.5) * W * 0.3;
+      p.cy = t.y - Math.random() * H * 0.1;
+      p.delay = Math.random() * 0.6;
+      p.dur = 1.4 + Math.random() * 0.9;
+    });
+    for (const s of shown) for (let i = 0; i < 24; i++) {
+      const a = Math.random() * Math.PI * 2, v = 60 + Math.random() * 200;
+      sparkles.push({ x: s.x + s.w / 2, y: s.y + s.h * 0.45, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 80,
+        r: 3 + Math.random() * 4, life: 0.6 + Math.random() * 0.7, col: pick(['#fff3c4', '#ffd1ec', s.key === 'dok' ? '#8fe6ff' : '#d3b0ff']) });
+    }
+    state = 'leave'; stateT = 0;
+  }
+  // 15 seconds on the end screen, then the page starts over for the next visitor (and forgets the name)
+  function showEndScreen() {
+    const end = document.getElementById('endScreen');
+    const pic = (id, img) => { const c = IMGS[id]; if (c && c.toDataURL) img.src = c.toDataURL(); };
+    pic('dok-wave', document.getElementById('endDok'));
+    pic('duk-wave', document.getElementById('endDuk'));
+    document.getElementById('endText').textContent = (visitor ? visitor.call + ', ' : '') + END_LINE;
+    end.hidden = false;
+    const count = document.getElementById('endCount');
+    let left = 15;
+    const tick = () => {
+      count.textContent = `${left}초 뒤에 처음 화면으로 돌아가요`;
+      if (left-- <= 0) location.reload();
+    };
+    tick();
+    setInterval(tick, 1000);
+    document.getElementById('endAgain').addEventListener('click', () => location.reload());
+    document.getElementById('endAgain').focus();
+  }
+
+  // every message counts towards the goodbye
   function hear(text) {
+    hearOne(text);
+    maybeEnd();
+  }
+  function hearOne(text) {
     text = text.trim();
     if (!text) return;
     showHeard(maskSwears(text));
@@ -1187,7 +1314,9 @@
       for (const s of shown) {
         // a newcomer only appears once its dust has nearly gathered
         if (s.isNew && state === 'gather' && stateT <= 1.9) continue;
-        s.alpha = Math.min(1, s.alpha + dt * 2.2);
+        // leaving: the picture fades while its dust flies off
+        s.alpha = state === 'leave' ? Math.max(0, 1 - stateT / 0.8) : Math.min(1, s.alpha + dt * 2.2);
+        if (s.alpha <= 0) continue;
         s.dx = lerp(s.dx, s.x, Math.min(1, dt * 5));
         const by = bobOffset(s);
         // soft glow + shadow
@@ -1224,6 +1353,10 @@
         pendingLine = null;
       }
     }
+    if (state === 'leave' && stateT > 3.2) {
+      state = 'ended'; stateT = 0; shown = [];
+      showEndScreen();
+    }
 
     ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < particles.length; i++) {
@@ -1242,7 +1375,15 @@
         p.a = p.ta ? Math.min(1, 0.3 + t) : Math.max(0, 1 - t * 2);
         // the real image fades in on top, so the dust fades out at the end
         if (stateT > 1.9) p.a *= Math.max(0, 1 - (stateT - 1.9) / 0.7);
-      } else if (state === 'idle') {
+      } else if (state === 'leave') {
+        // out of the picture, up and away, fading to plain dust
+        const t = Math.max(0, Math.min(1, (stateT - p.delay) / p.dur));
+        const e = 1 - (1 - t) * (1 - t), u = 1 - e;
+        p.x = u * u * p.sx + 2 * u * e * p.cx + e * e * p.tx;
+        p.y = u * u * p.sy + 2 * u * e * p.cy + e * e * p.ty;
+        for (let c = 0; c < 3; c++) p.col[c] = lerp(p.scol[c], p.tcol[c], e);
+        p.a = p.ta ? 1 - t : 0;
+      } else if (state === 'idle' || state === 'ended') {
         if (i >= IDLE_COUNT) { p.a = 0; continue; }
         // brownian drift, pulled gently home, shaken by your voice
         const jitter = 0.02;
@@ -1258,7 +1399,7 @@
         continue;
       }
       if (p.a <= 0.01) continue;
-      const flying = state === 'gather';
+      const flying = state === 'gather' || state === 'leave';
       const glint = flying ? 1 : (0.35 + 0.65 * Math.abs(Math.sin(now / 1000 * p.tw + p.phase))) * (0.35 + 0.9 * inBeam(p.x, p.y));
       const sz = flying ? 2.4 : p.size;
       ctx.globalAlpha = Math.min(1, p.a * glint);
