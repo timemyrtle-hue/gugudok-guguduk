@@ -284,27 +284,30 @@
   .game-pick small { font-size: 14px; color: #6f5c92; word-break: keep-all; }
 
   /* ----- 구구독 구구덕의 스무고개 게임 ----- */
-  .riddle-hints { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; text-align: left; }
-  .riddle-hints li {
-    background: #f7f2ff; border-radius: 12px; padding: 8px 12px; font-size: 15px; line-height: 1.45;
-    word-break: keep-all; animation: riddleIn .35s ease-out both;
+  .riddle-count {
+    display: inline-block; margin: 0 0 8px; padding: 3px 12px; border-radius: 999px;
+    background: #a35cf5; color: #fff; font-size: 13px;
   }
-  .riddle-hints li b { display: inline-block; margin-right: 6px; font-weight: normal; font-size: 12px; color: #fff; background: #a35cf5; border-radius: 999px; padding: 1px 8px; }
-  .riddle-opts { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
-  .riddle-opts button {
-    font: inherit; font-size: 15px; padding: 10px 6px; border-radius: 12px; cursor: pointer; word-break: keep-all;
-    border: 2px solid transparent; background: #e9f8fd; color: #1f5f7a;
+  .riddle-label { margin: 10px 0 5px; font-size: 13px; color: #8a76ad; text-align: left; }
+  /* the candidates: the ones that no longer fit fade and get crossed out */
+  .riddle-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+  .riddle-board button {
+    font: inherit; font-size: 13px; line-height: 1.25; padding: 8px 4px; border-radius: 10px; cursor: pointer;
+    border: 2px solid #e5dcfa; background: #fff; color: #3b2a55; word-break: keep-all;
+    transition: opacity .3s, background .3s;
   }
-  .riddle-opts button.right { background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
-  .riddle-note { min-height: 20px; margin: 8px 0 0; font-size: 14px; color: #c0446a; }
-  .riddle-more {
-    margin-top: 6px; font: inherit; font-size: 14px; cursor: pointer; border-radius: 999px; padding: 6px 16px;
-    background: #fff; border: 2px dashed #c9b3f5; color: #7b3fe0;
+  .riddle-board button.out { opacity: .35; text-decoration: line-through; background: #f3f0f7; cursor: default; }
+  .riddle-board button.right { opacity: 1; text-decoration: none; background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
+  /* the questions: once asked they stay, marked with the answer */
+  .riddle-qs { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+  .riddle-qs button {
+    font: inherit; font-size: 13px; padding: 6px 10px; border-radius: 999px; cursor: pointer; word-break: keep-all;
+    border: 2px solid #c9b3f5; background: #f7f2ff; color: #5b3b99;
   }
-  .riddle-more:disabled { opacity: .4; cursor: default; }
+  .riddle-qs button.yes { background: #dff7e8; border-color: #3fa58a; color: #1d6b4c; }
+  .riddle-qs button.no { background: #f1f1f1; border-color: #ddd; color: #888; }
   .riddle-met { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 4px; }
   .riddle-met span { background: #f3ecff; color: #5b3b99; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
-  @keyframes riddleIn { from { opacity: 0; transform: translateY(6px); } }
 
   /* ----- 구구독의 책장 정리 대작전 ----- */
   .shelf-book {
@@ -1703,23 +1706,23 @@
   }
 
   // ---------- 구구독 구구덕의 스무고개 게임 ----------
+  // a twin becomes a story character; the visitor asks yes/no questions and picks the right card
   const RIDDLE = window.RIDDLE;
-  const GOGAE = ['첫째', '둘째', '셋째', '넷째', '다섯째'];
-  // the twins take turns giving the hints, each in a thinking sort of pose
   const RIDDLE_POSES = { duk: ['duk-search', 'duk-think'], dok: ['dok-read', 'dok-wink'] };
+  const riddleYes = (c, id) => c.yes.includes(id);
   let riddleRounds = [], riddleScore = 0, riddleResult = null;
 
+  // the secret character plus the look-alikes that answer the most questions the same way
+  function riddleBoard(c) {
+    const alike = o => RIDDLE.questions.filter(q => riddleYes(o, q.id) === riddleYes(c, q.id)).length + Math.random() * 0.9;
+    const others = RIDDLE.characters.filter(o => o !== c)
+      .map(o => ({ o, s: alike(o) })).sort((a, b) => b.s - a.s)
+      .slice(0, RIDDLE.boardSize - 1).map(x => x.o);
+    return shuffle([c, ...others]);
+  }
   function riddleIntro() {
     riddleScore = 0; riddleResult = null;
-    // each round: a character, plus the three look-alikes sharing the most tags as the wrong choices
-    // (the random part only breaks ties, so 콩쥐 gets 신데렐라·팥쥐·백설 공주 rather than 걸리버);
-    // anyone with the very same first hint always comes along (걸리버 ↔ 로빈슨 크루소)
-    const lookAlikes = c => RIDDLE.characters.filter(o => o !== c)
-      .map(o => ({ o, s: o.tags.filter(t => c.tags.includes(t)).length + (o.hints[0] === c.hints[0] ? 10 : 0) + Math.random() * 0.9 }))
-      .sort((a, b) => b.s - a.s).slice(0, 3).map(x => x.o);
-    riddleRounds = shuffle(RIDDLE.characters).slice(0, RIDDLE.rounds).map(c => ({
-      c, options: shuffle([c, ...lookAlikes(c)]),
-    }));
+    riddleRounds = shuffle(RIDDLE.characters).slice(0, RIDDLE.rounds).map(c => ({ c, board: riddleBoard(c) }));
     drawQuizPose(RIDDLE.intro.pose);
     const actions = make('div', 'quiz-actions');
     actions.append(button(RIDDLE.intro.start, 'primary', () => riddleRound(0)));
@@ -1733,54 +1736,76 @@
     return [make('div', 'quiz-progress', `${i + 1}번째 주인공 / ${total}  ·  점수 ${riddleScore}`), bar];
   }
   function riddleRound(i) {
-    const { c, options } = riddleRounds[i];
+    const { c, board } = riddleRounds[i];
     const host = i % 2 ? 'dok' : 'duk';
     drawQuizPose(pick(RIDDLE_POSES[host]));
-    const list = make('ol', 'riddle-hints');
-    const note = make('p', 'riddle-note');
-    const more = button(RIDDLE.more, 'riddle-more', () => showHint());
-    let shown = 0, wrongs = 0, done = false;
-    function showHint() {
-      if (shown >= c.hints.length) return;
-      const li = make('li');
-      li.append(make('b', null, `${GOGAE[shown]} 고개`), document.createTextNode(c.hints[shown]));
-      list.append(li);
-      shown++;
-      if (shown >= c.hints.length) more.disabled = true;
-    }
-    showHint();
-    const opts = make('div', 'riddle-opts');
-    options.forEach(o => {
-      const b = button(o.name, null, () => {
-        if (done) return;
-        if (o !== c) {
-          // a wrong guess crosses that choice out and opens the next hint
-          wrongs++;
-          b.classList.add('wrong'); b.disabled = true;
-          note.textContent = pick(RIDDLE.wrong);
-          showHint();
-          return;
-        }
-        done = true;
-        // 5 points on the first hint, one less for every extra hint or wrong guess (at least 1)
-        const pts = Math.max(1, 6 - shown - wrongs);
-        riddleScore += pts;
-        b.classList.add('right');
-        opts.querySelectorAll('button').forEach(x => { x.disabled = true; });
-        more.disabled = true;
-        note.textContent = '';
-        riddleFeedback(i, host, c, pts);
-      });
-      opts.append(b);
+    let used = 0, done = false;
+    const count = make('div', 'riddle-count');
+    const showCount = () => { count.textContent = `남은 고개 ${Math.max(0, RIDDLE.limit - used)}`; };
+    showCount();
+    // the twin's latest answer
+    const talk = make('div', 'quiz-say'), words = document.createTextNode(RIDDLE.ask);
+    talk.append(make('b', null, CHARS[host].name), words);
+    const cards = make('div', 'riddle-board'), cardOf = new Map();
+    board.forEach(o => {
+      const b = button(o.name, null, () => guess(o, b));
+      cardOf.set(o, b);
+      cards.append(b);
     });
-    showQuizScreen([...riddleHeader(i), make('div', 'quiz-q', `${CHARS[host].name}: "${RIDDLE.ask}"`), list, opts, note, more]);
+    const qs = make('div', 'riddle-qs');
+    RIDDLE.questions.forEach(q => {
+      const b = button(q.q, null, () => ask(q, b));
+      qs.append(b);
+    });
+    const dropOut = o => { const b = cardOf.get(o); b.classList.add('out'); b.disabled = true; };
+    function ask(q, b) {
+      if (done) return;
+      used++;
+      const yes = riddleYes(c, q.id);
+      b.disabled = true;
+      b.classList.add(yes ? 'yes' : 'no');
+      b.textContent = `${yes ? '⭕' : '❌'} ${q.q}`;
+      // candidates that would answer the other way can't be the one
+      board.forEach(o => { if (riddleYes(o, q.id) !== yes) dropOut(o); });
+      const left = board.filter(o => !cardOf.get(o).classList.contains('out')).length;
+      words.textContent = `"${q.q}" ${pick(yes ? RIDDLE.yesLines : RIDDLE.noLines)}${left === 1 ? ' ' + RIDDLE.lastOne : ''}`;
+      showCount();
+      if (used >= RIDDLE.limit) finish(false);
+    }
+    function guess(o, b) {
+      if (done) return;
+      if (o === c) { b.classList.add('right'); finish(true); return; }
+      used += RIDDLE.wrongCost;
+      b.classList.add('wrong');
+      dropOut(o);
+      words.textContent = pick(RIDDLE.wrongGuess);
+      showCount();
+      if (used >= RIDDLE.limit) finish(false);
+    }
+    function finish(ok) {
+      done = true;
+      cards.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      qs.querySelectorAll('button').forEach(x => { x.disabled = true; });
+      if (!ok) cardOf.get(c).classList.add('right');
+      // fewer 고개 used, more points
+      const pts = ok ? (RIDDLE.scores.find(s => used <= s.upTo) || { pts: 1 }).pts : 0;
+      riddleScore += pts;
+      riddleFeedback(i, host, c, ok, pts, used);
+    }
+    showQuizScreen([
+      ...riddleHeader(i), count, talk,
+      make('div', 'riddle-label', '주인공 후보 · 누구인지 알겠으면 눌러 봐!'), cards,
+      make('div', 'riddle-label', '질문 고르기 · 질문 하나에 한 고개'), qs,
+    ]);
   }
-  function riddleFeedback(i, host, c, pts) {
-    // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a pair
+  function riddleFeedback(i, host, c, ok, pts, used) {
+    // "나는 「피노키오의 모험」의 피노키오야!" — or 주인공 when the book has the same name, 우리는 for a group
     const who = c.book === c.name ? '주인공' : c.name;
+    const me = `${c.we ? '우리는' : '나는'} 「${c.book}」의 ${who}${hasBatchim(who[who.length - 1]) ? '이야' : '야'}!`;
     const box = make('div', 'quiz-say');
-    box.append(make('b', null, CHARS[host].name),
-      document.createTextNode(`${pick(RIDDLE.right)} ${c.we ? '우리는' : '나는'} 「${c.book}」의 ${who}${hasBatchim(who[who.length - 1]) ? '이야' : '야'}! ${'⭐'.repeat(pts)} +${pts}점`));
+    box.append(make('b', null, CHARS[host].name), document.createTextNode(ok
+      ? `${pick(RIDDLE.right)} ${me} ${c.about} (${used}고개 · ${'⭐'.repeat(pts)} +${pts}점)`
+      : `${RIDDLE.timeUp} ${me} ${c.about}`));
     const actions = make('div', 'quiz-actions');
     const lastRound = i + 1 >= riddleRounds.length;
     const nextBtn = button(lastRound ? '결과 보기' : '다음 주인공', 'primary', () => lastRound ? riddleShowResult() : riddleRound(i + 1));
@@ -1836,7 +1861,7 @@
     picks.append(
       pickBtn('💜', QUIZ.intro.title, '질문 10개로 알아보는 나의 독서 취향', quizIntro),
       pickBtn('📚', SHELF.intro.title, '책을 알맞은 분류 칸에 꽂아 보는 퀴즈', shelfIntro),
-      pickBtn('duk-search', RIDDLE.intro.title, '힌트를 듣고 이야기 속 주인공을 맞혀라!', riddleIntro),
+      pickBtn('duk-search', RIDDLE.intro.title, '질문해서 이야기 속 주인공을 맞혀라!', riddleIntro),
     );
     showQuizScreen([make('h2', null, '구구독 구구덕 게임'), make('p', null, '어떤 게임을 해 볼까?'), picks]);
   }
