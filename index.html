@@ -369,6 +369,7 @@
   .riddle-check b { font-weight: normal; color: #3b2a55; }
   .riddle-check li.yes { color: #1d6b4c; }
   .riddle-check li.no { color: #999; }
+  .riddle-check .why { display: block; margin-top: 2px; font-size: 12px; line-height: 1.4; color: #8a76ad; }
   .riddle-sky.done .quiz-actions { margin-top: 8px; }
   .riddle-met { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin: 6px 0 4px; }
   .riddle-met span { background: #f3ecff; color: #5b3b99; border-radius: 999px; padding: 4px 10px; font-size: 13px; }
@@ -2132,6 +2133,9 @@
       const yes = riddleAnswer(c, q);
       const li = make('li', yes ? 'yes' : 'no');
       li.append(make('b', null, `${yes ? '⭕' : '❌'} ${q.q}`), document.createTextNode(yes ? ` → ${riddleReason(c, q)}` : ' → 아니야'));
+      // where in the story that answer comes from (why, in riddle.js)
+      const why = yes && !q.not && c.why && c.why[q.id];
+      if (why) li.append(make('span', 'why', `📖 근거: ${why}`));
       check.append(li);
     });
     const actions = make('div', 'quiz-actions');
