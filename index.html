@@ -64,6 +64,31 @@
     opacity: .6; transition: opacity 1s;
   }
   #silhouette.gone { opacity: 0; }
+  /* when nobody says anything on the start screen: one small whisper above the shadow (placed by placeNudge) */
+  #nudge {
+    position: fixed; left: 50%; transform: translateX(-50%); z-index: 3; pointer-events: none;
+    max-width: calc(100vw - 32px); padding: 8px 16px; border-radius: 18px; white-space: nowrap;
+    background: #fff8e8; color: #5b3a8a; font-size: 16px; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+    opacity: 0; transition: opacity .8s;
+  }
+  #nudge::after {
+    content: ''; position: absolute; left: 50%; bottom: -7px; margin-left: -7px;
+    border: 7px solid transparent; border-bottom: 0; border-top-color: #fff8e8;
+  }
+  #nudge.show { opacity: 1; }
+  /* ...and later, hellos to tap, just above the message box */
+  #quick {
+    position: absolute; left: 0; right: 0; bottom: calc(100% + 12px);
+    display: flex; justify-content: center; gap: 8px;
+    opacity: 0; transform: translateY(6px); transition: opacity .8s, transform .8s; pointer-events: none;
+  }
+  #quick.show { opacity: 1; transform: none; pointer-events: auto; }
+  #quick button {
+    height: 40px; padding: 0 16px; border-radius: 20px; border: 2px solid rgba(255, 217, 143, .7); cursor: pointer;
+    background: rgba(40, 24, 64, .75); color: #fff6e3; font: inherit; font-size: 16px; white-space: nowrap;
+  }
+  #say.glow { animation: sayGlow 1.6s ease-in-out 2; }
+  @keyframes sayGlow { 50% { border-color: #ffd98f; box-shadow: 0 0 16px rgba(255, 217, 143, .6); } }
   #hint {
     position: fixed; left: 50%; top: 30%; transform: translate(-50%, -50%);
     z-index: 2; width: min(960px, calc(100vw - 32px)); word-break: keep-all;
@@ -445,6 +470,7 @@
   <div class="line1">구미도서관 청소년 공간을 대표하는</div>
   <div class="line2"><span class="spark">✨</span> <span class="word dok">구구독</span> <span class="word"><span class="duk">구구덕</span>을</span> <span class="word">환영해</span> <span class="word">주세요</span> <span class="spark r">✨</span></div>
 </div>
+<div id="nudge" aria-hidden="true">똑똑… 우리한테 인사해 줄래?</div>
 <div id="heard"></div>
 <div id="toast"></div>
 
@@ -457,6 +483,7 @@
 </div>
 
 <div id="controls">
+  <div id="quick"><button type="button">안녕! 👋</button><button type="button">환영해! 🎉</button><button type="button">반가워!</button></div>
   <button id="gameBtn" type="button" title="구구독 구구덕 게임">🎮<span class="label"> 게임</span></button>
   <form id="form">
     <input id="say" autocomplete="off" placeholder="구미도서관 구구독 구구덕 캐릭터에게 환영의 말을 적어주세요">
@@ -1461,6 +1488,50 @@
     } else {
       hear(text);
     }
+  });
+
+  // nobody has said anything on the start screen yet: invite them, one quiet step at a time.
+  // 5s: the box shows example words / 10s: a whisper above the shadow and the box glows twice /
+  // 15s: hellos to tap. Typing or tapping anywhere puts it all away and starts the count again.
+  const nudgeEl = document.getElementById('nudge');
+  const quick = document.getElementById('quick');
+  const NUDGE = { examples: 5, whisper: 10, hellos: 15,
+    words: ['예: 안녕! 반가워~', '예: 환영해!', '예: 너희 이름이 뭐야?'] };
+  const firstPlaceholder = input.placeholder;
+  let quiet = 0;
+  function placeNudge() {
+    const box = (silhouette.hidden ? hint : silhouette).getBoundingClientRect();
+    nudgeEl.style.top = (silhouette.hidden ? box.bottom + 8 : box.top + 4) + 'px';
+  }
+  function hush() {
+    quiet = 0;
+    input.placeholder = firstPlaceholder;
+    nudgeEl.classList.remove('show');
+    quick.classList.remove('show');
+    input.classList.remove('glow');
+  }
+  setInterval(() => {
+    if (state !== 'idle' || !quizEl.hidden || input.value) return void (quiet && hush());
+    quiet++;
+    if (quiet >= NUDGE.examples) {
+      const i = Math.floor((quiet - NUDGE.examples) / 3) % NUDGE.words.length;
+      input.placeholder = NUDGE.words[i];
+    }
+    if (quiet === NUDGE.whisper) {
+      placeNudge();
+      nudgeEl.classList.add('show');
+      input.classList.add('glow');
+    }
+    if (quiet === NUDGE.hellos) quick.classList.add('show');
+  }, 1000);
+  input.addEventListener('input', hush);
+  document.addEventListener('keydown', hush);
+  document.addEventListener('pointerdown', e => { if (!quick.contains(e.target)) hush(); });
+  quick.addEventListener('click', e => {
+    const b = e.target.closest('button');
+    if (!b || state !== 'idle') return;
+    hush();
+    hear(b.textContent.replace(/\s*\p{Extended_Pictographic}/gu, '').trim());
   });
   // the start-screen shadow: the left figure is 구구독, the right one 구구덕
   function silhouetteKeyAt(x, y) {
