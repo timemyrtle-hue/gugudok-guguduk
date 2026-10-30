@@ -150,11 +150,12 @@
   .bubble.side.right { transform: translateX(-100%) scale(.6); transform-origin: right top; }
   .bubble.side.right.show { transform: translateX(-100%); }
   .bubble.side::after { display: none; }
+  /* a phone held sideways (not an upright phone with its keyboard open, body.kbd) */
   @media (max-height: 520px) and (orientation: landscape) {
-    #title { top: 6px; }
-    #title .sub { font-size: 13px; }
-    #title h1 { font-size: 30px; letter-spacing: 2px; }
-    .bubble { padding: 10px 12px; font-size: 14px; border-radius: 16px; }
+    body:not(.kbd) #title { top: 6px; }
+    body:not(.kbd) #title .sub { font-size: 13px; }
+    body:not(.kbd) #title h1 { font-size: 30px; letter-spacing: 2px; }
+    body:not(.kbd) .bubble { padding: 10px 12px; font-size: 14px; border-radius: 16px; }
   }
 
   #heard {
@@ -245,6 +246,21 @@
     opacity: 0; transition: opacity .3s; pointer-events: none; text-align: center;
   }
   #toast.show { opacity: 1; }
+
+  /* ----- 효과음 버튼 ----- */
+  #soundBtn {
+    position: fixed; z-index: 45;
+    top: calc(12px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer; padding: 0;
+    border: 2px solid rgba(255,255,255,.25); background: rgba(40, 24, 64, .6); color: #fff;
+    font-size: 20px; line-height: 1; backdrop-filter: blur(4px);
+  }
+  #soundBtn.off { opacity: .6; }
+  /* while a phone keyboard is open the screen is small: the button steps aside so it covers no bubble */
+  body.kbd #soundBtn { display: none; }
+  #soundBtn:focus-visible { outline: 2px solid #ffd98f; outline-offset: 2px; }
+  /* the game window's own ✕ sits top-right of its card; keep clear of it on narrow phones */
+  body:has(#quiz:not([hidden])) #soundBtn { top: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 
   /* ----- 독서 취향 테스트 ----- */
   #gameBtn {
@@ -520,6 +536,139 @@
 <script src="riddle.js"></script>
 <script src="names.js"></script>
 <script src="eggs.js"></script>
+
+<!-- sound on / off (remembered on this phone) -->
+<button id="soundBtn" type="button" aria-label="효과음 끄기" title="효과음 켜기/끄기">🔊</button>
+
+<script>
+// ---------- 효과음 (all made in the browser with Web Audio: no sound files) ----------
+// SFX.play('name'). Phones only allow sound after the first tap, so the engine wakes up then.
+window.SFX = (() => {
+  let ctx = null, master = null, muted = false;
+  try { muted = localStorage.getItem('gugu-sfx-muted') === '1'; } catch (e) {}
+  const VOLUME = 0.55;
+  function wake() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      ctx = new AC();
+      const comp = ctx.createDynamicsCompressor();
+      comp.threshold.value = -14; comp.ratio.value = 6;
+      master = ctx.createGain();
+      master.gain.value = muted ? 0 : VOLUME;
+      master.connect(comp); comp.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  // sound is only made after the visitor has touched the page at least once
+  let touched = false;
+  const unlock = () => { touched = true; wake(); };
+  ['pointerdown', 'touchend', 'keydown'].forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+
+  // one note: frequency (optionally gliding to f2), start offset, length, wave, loudness
+  function tone(f, at = 0, dur = 0.2, type = 'sine', vol = 0.3, f2 = null, attack = 0.008) {
+    const t = ctx.currentTime + at;
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.type = type;
+    o.frequency.setValueAtTime(f, t);
+    if (f2) o.frequency.exponentialRampToValueAtTime(f2, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(master);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+  // a soft bell: a sine with a quiet bright overtone
+  function bell(f, at = 0, dur = 0.6, vol = 0.22) {
+    tone(f, at, dur, 'sine', vol);
+    tone(f * 2.01, at, dur * 0.6, 'sine', vol * 0.25);
+    tone(f * 3.98, at, dur * 0.3, 'sine', vol * 0.08);
+  }
+  let noiseBuf = null;
+  // filtered noise: whooshes and puffs
+  function noise(at = 0, dur = 0.3, vol = 0.15, from = 800, to = 3000, q = 1.2) {
+    if (!noiseBuf) {
+      noiseBuf = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0);
+      for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    }
+    const t = ctx.currentTime + at;
+    const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
+    s.buffer = noiseBuf;
+    f.type = 'bandpass'; f.Q.value = q;
+    f.frequency.setValueAtTime(from, t); f.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(vol, t + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    s.connect(f); f.connect(g); g.connect(master);
+    s.start(t); s.stop(t + dur + 0.05);
+  }
+  // C major pentatonic, so random sparkles always sound pretty together
+  const PENTA = [523.25, 587.33, 659.25, 783.99, 880, 1046.5, 1174.66, 1318.51, 1567.98, 1760, 2093];
+  const rnd = a => a[(Math.random() * a.length) | 0];
+
+  const SOUNDS = {
+    // right answer: ding-ding
+    right() { bell(1046.5, 0, 0.5, 0.2); bell(1567.98, 0.1, 0.8, 0.2); },
+    // wrong answer: a gentle, funny "boo-boop" (not scary for kids)
+    wrong() { tone(330, 0, 0.16, 'triangle', 0.2, 294); tone(262, 0.17, 0.28, 'triangle', 0.2, 220); },
+    // a book slides into its place on the shelf; each one a step higher
+    place(n = 0) { noise(0, 0.08, 0.06, 1500, 600, 2); tone(PENTA[Math.min(n, 6)], 0.03, 0.18, 'triangle', 0.14); },
+    // 스무고개: 응! / 아니!
+    yes() { tone(660, 0, 0.12, 'sine', 0.18, 990); bell(1320, 0.08, 0.3, 0.1); },
+    no() { tone(440, 0, 0.18, 'sine', 0.16, 330); },
+    // a thought cloud puffs away
+    puff() { noise(0, 0.25, 0.1, 2500, 700, 1); },
+    // 찬스: a magic sweep
+    chance() { for (let i = 0; i < 8; i++) bell(PENTA[2 + i], i * 0.05, 0.4, 0.09); noise(0, 0.6, 0.05, 1000, 6000, 0.8); },
+    // a round lost: two soft falling notes
+    lose() { tone(523.25, 0, 0.25, 'triangle', 0.16); tone(392, 0.22, 0.45, 'triangle', 0.16); },
+    // the result screen: a little fanfare
+    fanfare() {
+      [[523.25, 0], [659.25, 0.12], [783.99, 0.24], [1046.5, 0.38]].forEach(([f, t]) => tone(f, t, 0.18, 'square', 0.06));
+      bell(1046.5, 0.38, 1.0, 0.18); bell(1318.51, 0.38, 1.0, 0.12); bell(1567.98, 0.38, 1.0, 0.1);
+      for (let i = 0; i < 6; i++) bell(rnd(PENTA.slice(5)), 0.55 + i * 0.07, 0.4, 0.05);
+    },
+    // the golden book
+    gold() { for (let i = 0; i < 10; i++) bell(PENTA[i], i * 0.06, 0.6, 0.1); bell(2093, 0.65, 1.2, 0.14); },
+    // five taps: 구구독/구구덕 giggles
+    giggle() { for (let i = 0; i < 5; i++) tone(900 + (i % 2) * 220, i * 0.08, 0.07, 'sine', 0.13, 1100 + (i % 2) * 220); },
+    // the heart of little stars
+    heart() { bell(783.99, 0, 0.5, 0.12); bell(1046.5, 0.12, 0.5, 0.12); bell(1318.51, 0.24, 0.8, 0.12); },
+  };
+
+  // the same sound is not played again within a few hundredths of a second (no pile-ups)
+  const lastAt = {};
+  function play(name, arg) {
+    if (muted || !touched || !SOUNDS[name] || !wake() || ctx.state === 'closed') return;
+    const now = performance.now();
+    if (now - (lastAt[name] || 0) < 60) return;
+    lastAt[name] = now;
+    try { SOUNDS[name](arg); } catch (e) {}
+  }
+  function setMuted(m) {
+    muted = m;
+    try { localStorage.setItem('gugu-sfx-muted', m ? '1' : '0'); } catch (e) {}
+    if (master) master.gain.setTargetAtTime(m ? 0 : VOLUME, ctx.currentTime, 0.03);
+  }
+  // the sound button
+  const btn = document.getElementById('soundBtn');
+  const paint = () => {
+    btn.textContent = muted ? '🔇' : '🔊';
+    btn.setAttribute('aria-label', muted ? '효과음 켜기' : '효과음 끄기');
+    btn.classList.toggle('off', muted);
+  };
+  paint();
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    setMuted(!muted); paint();
+    if (!muted) wake();
+  });
+  return { play, setMuted, get muted() { return muted; } };
+})();
+</script>
+
 <script>
 (() => {
   const shelf = document.getElementById('shelf');
@@ -769,7 +918,9 @@
   // stands near the bottom, leaving the space above for the speech bubbles
   const isNarrow = () => W < 700;
   // a phone held sideways: too short for bubbles above, so they go beside the twins
-  const isShort = () => H < 520 && W > H;
+  // (judged by the height without a keyboard: an open phone keyboard makes the screen look
+  // wider than tall, but the phone is still upright)
+  const isShort = () => { const h = fullH || H; return h < 520 && W > h; };
   // while a phone keyboard is open the screen gets shorter: keep the twins at their
   // full-screen size and just lift them above the input bar
   let fullH = 0, lastW = 0;
@@ -1421,6 +1572,7 @@
   // little stars gather into a heart between the twins for a moment
   function heartDust() {
     if (!shown.length) return;
+    SFX.play('heart');
     const top = Math.min(...shown.map(s => s.y)), cy = top + 40, cx = W / 2, k = Math.min(W, H) * 0.009;
     for (let i = 0; i < 30; i++) {
       const t = i / 30 * Math.PI * 2;
@@ -1456,6 +1608,7 @@
     const list = tickles[key] = tickles[key].filter(t => now - t < T.within).concat(now);
     if (list.length < T.taps) return false;
     tickles[key] = [];
+    SFX.play('giggle');
     setPoses({ [key]: T.pose[key] });
     say(key, pickFresh(T[key]));
     return true;
@@ -1550,6 +1703,7 @@
   stage.addEventListener('click', e => {
     if (onGold(e.clientX, e.clientY) && (state === 'idle' || state === 'shown')) {
       gold.found = true;
+      SFX.play('gold');
       drawShelf();
       burst([{ key: 'gold', x: gold.rect.x - 20, y: gold.rect.y, w: gold.rect.w + 40, h: gold.rect.h }], 30);
       eggSay('goldbook');
@@ -1800,7 +1954,7 @@
   function button(text, cls, onClick) {
     const b = make('button', cls, text);
     b.type = 'button';
-    b.addEventListener('click', onClick);
+    if (onClick) b.addEventListener('click', onClick);
     return b;
   }
   function showQuizScreen(nodes) {
@@ -1837,6 +1991,7 @@
     const best = Math.max(...Object.values(quizScore));
     const tied = Object.keys(quizScore).filter(k => quizScore[k] === best);
     const res = quizResult = QUIZ.results[pick(tied)];
+    SFX.play('fanfare');
     drawQuizPose(res.pose);
     const chips = make('div', 'quiz-chips');
     res.genres.forEach(g => chips.append(make('span', null, g)));
@@ -1918,6 +2073,7 @@
     SHELF.sections.forEach(sec => {
       const b = button(`${sec.code} ${sec.name}`, null, () => {
         const ok = sec.code === book.cls;
+        SFX.play(ok ? 'right' : 'wrong');
         if (ok) shelfScore++;
         grid.querySelectorAll('button').forEach(x => {
           x.disabled = true;
@@ -1955,15 +2111,18 @@
         if (book === sorted[placed]) {
           b.disabled = true;
           slots[placed].replaceChildren(spineFor(book, k));
+          SFX.play('place', placed);
           placed++;
           if (placed === sorted.length) {
             done = true; shelfScore++;
+            setTimeout(() => SFX.play('right'), 200);
             shelfFeedback(i, true, `${rule} 꽂으면 돼!`);
           }
           return;
         }
         // a wrong pick: show the right order on the shelf
         done = true;
+        SFX.play('wrong');
         b.classList.add('wrong');
         pile.querySelectorAll('button').forEach(x => { x.disabled = true; });
         sorted.forEach((s, n) => slots[n].replaceChildren(spineFor(s, books.indexOf(s))));
@@ -1977,6 +2136,7 @@
   }
   function shelfShowResult() {
     const res = shelfResult = SHELF.results.find(r => shelfScore >= r.min);
+    SFX.play('fanfare');
     drawQuizPose(res.pose);
     const box = make('div', 'quiz-say');
     box.append(make('b', null, '구구독'), document.createTextNode(SHELF.outro));
@@ -2136,6 +2296,7 @@
       if (done || asked.includes(q)) return;
       clouds.querySelectorAll('button').forEach(x => { x.disabled = x !== b; });
       b.classList.add('picked');
+      SFX.play('puff');
       setTimeout(() => ask(q), 280);
     }
     function ask(q) {
@@ -2143,6 +2304,7 @@
       used++;
       asked.push(q);
       const yes = riddleAnswer(c, q), A = RIDDLE.answers;
+      SFX.play(yes ? 'yes' : 'no');
       show(q.q, yes ? 'yes' : 'no', { dok: pick(A.dok[yes ? 'yes' : 'no']), duk: pick(A.duk[yes ? 'yes' : 'no']) });
       history.prepend(make('li', yes ? 'yes' : 'no', `${yes ? '⭕' : '❌'} ${q.q}`));
       foldTitle.textContent = `${RIDDLE.askedTitle} (${asked.length})`;
@@ -2155,6 +2317,7 @@
       if (done || b.classList.contains('out')) return;
       if (o === c) { finish(true); return; }
       used += RIDDLE.wrongCost;
+      SFX.play('wrong');
       b.classList.add('wrong', 'out');
       show(pick(RIDDLE.wrongGuess), 'no', { dok: '땡!', duk: '땡!' });
       if (used >= RIDDLE.limit) finish(false);
@@ -2163,6 +2326,7 @@
     function useChance() {
       if (done || !riddleChance) return;
       riddleChance = false;
+      SFX.play('chance');
       chanceBtn.disabled = true;
       shuffle(alive().filter(o => o !== c)).slice(0, RIDDLE.chanceCards)
         .forEach(o => cardOf.get(o).classList.add('out'));
@@ -2178,6 +2342,7 @@
       answer.classList.add('right');
       // fewer 고개 used, more points
       const pts = ok ? (RIDDLE.scores.find(s => used <= s.upTo) || { pts: 1 }).pts : 0;
+      SFX.play(ok ? 'right' : 'lose');
       riddleScore += pts;
       show(ok ? pick(RIDDLE.right) : RIDDLE.timeUp, ok ? 'win' : 'no', ok ? { dok: '정답!', duk: '최고!' } : { dok: '아쉽다!', duk: '다음엔!' });
       riddleFeedback(i, i % 2 ? 'dok' : 'duk', c, ok, pts, used, asked, sky);
@@ -2222,6 +2387,7 @@
   }
   function riddleShowResult() {
     const res = riddleResult = RIDDLE.results.find(r => riddleScore >= r.min);
+    SFX.play('fanfare');
     drawQuizPose(res.pose);
     // the characters met in this game, so the visitor can look for their books
     const met = make('div', 'riddle-met');
@@ -2278,6 +2444,7 @@
     gamesMenu();
   }
   function closeQuiz() {
+    if (quizEl.hidden) return;
     quizEl.hidden = true;
     // the twin who hosted the game cheers the result in the scene too
     // with a name, the cheers call the visitor by it
