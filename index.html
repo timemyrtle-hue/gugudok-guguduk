@@ -924,6 +924,15 @@ window.SFX = (() => {
     // the 독서 영수증 book sits on its own little wall shelf at the top left; the top row leaves that corner empty
     const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045)), rcShelfX1 = rcX + 88;
     const rcGap = RECEIPT ? [0, rcShelfX1 + 6] : null;
+    // the hidden golden book (eggs.js) stands in a gap of its own on a shelf in the middle band, near a side
+    let goldRow = -1, goldGap = null;
+    if (gold && !gold.found) {
+      const first = Math.ceil(H * 0.3 / shelfH), last = Math.max(first, Math.floor(H * 0.55 / shelfH));
+      goldRow = first + Math.floor(gold.row * (last - first + 1)) - 1;
+      const w = 17, h = shelfH * 0.64, gx = Math.round(gold.fx * W - w / 2), baseY = (goldRow + 1) * shelfH;
+      gold.rect = { x: gx, y: baseY - 8 - h, w, h };
+      goldGap = [gx - 3, gx + w + 3];
+    }
     for (let r = 0; r < rows; r++) {
       const baseY = (r + 1) * shelfH;
       let x = -10;
@@ -931,7 +940,7 @@ window.SFX = (() => {
         const bw = 14 + rnd() * 26;
         const bh = shelfH * (0.55 + rnd() * 0.32);
         const tilt = rnd() < 0.06 ? (rnd() - 0.5) * 0.25 : 0;
-        if (r === 0 && rcGap && x + bw > rcGap[0] && x < rcGap[1]) {
+        if ((r === 0 && rcGap && x + bw > rcGap[0] && x < rcGap[1]) || (r === goldRow && x + bw > goldGap[0] && x < goldGap[1])) {
           x += bw + (rnd() < 0.08 ? 20 + rnd() * 30 : 0);
           continue;
         }
@@ -954,6 +963,17 @@ window.SFX = (() => {
       sctx.fillRect(0, baseY - 8, W, 12);
     }
     sctx.globalAlpha = 1;
+    // the golden book: gilt cloth with a few raised bands, in the same light as its neighbours
+    if (goldRow >= 0) {
+      const { x, y, w, h } = gold.rect;
+      const g = sctx.createLinearGradient(x, 0, x + w, 0);
+      g.addColorStop(0, '#8a6420'); g.addColorStop(0.45, '#f2cf6a'); g.addColorStop(1, '#7a5618');
+      sctx.globalAlpha = 0.85; sctx.fillStyle = g;
+      roundRect(sctx, x, y, w, h, 3); sctx.fill();
+      sctx.globalAlpha = 0.55; sctx.fillStyle = '#5a3f12';
+      [10, 16, h * 0.7, h * 0.7 + 6].forEach(yy => sctx.fillRect(x + 2, y + yy, w - 4, 2));
+      sctx.globalAlpha = 1;
+    }
     // the 독서 영수증 book's little wall shelf, in the same wood and book colours as the shelves around it
     // (drawn before the room is dimmed, so it sits in the same light)
     const rcBoardY = Math.round(shelfH - 8 - shelfH * 0.22);
@@ -977,23 +997,12 @@ window.SFX = (() => {
     dim.addColorStop(1, 'rgba(18,14,31,0.85)');
     sctx.fillStyle = dim;
     sctx.fillRect(0, 0, W, H);
-    // the hidden golden book (eggs.js): on a shelf in the middle band, near a side
-    if (gold && !gold.found) {
-      const first = Math.ceil(H * 0.3 / shelfH), last = Math.max(first, Math.floor(H * 0.55 / shelfH));
-      const baseY = (first + Math.floor(gold.row * (last - first + 1))) * shelfH;
-      const w = 15, h = shelfH * 0.6;
-      gold.rect = { x: gold.fx * W - w / 2, y: baseY - 8 - h, w, h };
-      const g = sctx.createLinearGradient(gold.rect.x, 0, gold.rect.x + w, 0);
-      g.addColorStop(0, '#b8862b'); g.addColorStop(0.5, '#ffe08a'); g.addColorStop(1, '#c9952f');
-      sctx.save();
-      sctx.shadowColor = 'rgba(255, 214, 120, 0.7)'; sctx.shadowBlur = 10;
-      sctx.fillStyle = g;
-      roundRect(sctx, gold.rect.x, gold.rect.y, w, h, 3);
-      sctx.fill();
-      sctx.restore();
-      sctx.fillStyle = 'rgba(120, 80, 20, 0.5)';
-      sctx.fillRect(gold.rect.x + 3, gold.rect.y + 10, w - 6, 2);
-      sctx.fillRect(gold.rect.x + 3, gold.rect.y + h * 0.7, w - 6, 2);
+    // a faint warm sheen on the golden book, so it can still be spotted in the dark room
+    if (goldRow >= 0) {
+      const { x, y, w, h } = gold.rect;
+      const sheen = sctx.createRadialGradient(x + w / 2, y + h * 0.4, 1, x + w / 2, y + h * 0.4, h * 0.6);
+      sheen.addColorStop(0, 'rgba(255, 214, 120, .16)'); sheen.addColorStop(1, 'rgba(255, 214, 120, 0)');
+      sctx.fillStyle = sheen; sctx.fillRect(x + w / 2 - h * 0.6, y - h * 0.2, h * 1.2, h * 1.2);
     }
     // the 독서 영수증 book on its little wall shelf: a navy book with a receipt slip poking out of the top
     // like a bookmark, a touch brighter than the books around it, under a faint pool of warm light
