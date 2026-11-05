@@ -1811,7 +1811,7 @@ window.SFX = (() => {
   const gold = EGGS && Math.random() < EGGS.goldChance ? { fx: Math.random() < 0.5 ? 0.05 + Math.random() * 0.08 : 0.87 + Math.random() * 0.08, row: Math.random(), found: false } : null;
   const onGold = (x, y) => gold && !gold.found && gold.rect
     && x > gold.rect.x - 14 && x < gold.rect.x + gold.rect.w + 14 && y > gold.rect.y - 14 && y < gold.rect.y + gold.rect.h + 14;
-  // five quick taps on the same twin tickle them
+  // quick taps on the same twin tickle them (how many and how fast: eggs.js tickle)
   const tickles = { dok: [], duk: [] };
   // after a twin answers a tap, more taps within POKE_GAP seconds do nothing, so the words can be read
   const POKE_GAP = 5;
