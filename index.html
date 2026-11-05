@@ -921,8 +921,9 @@ window.SFX = (() => {
     const palette = ['#5b3f8f', '#3f6fa8', '#a6466f', '#c08a3e', '#2f7d6d', '#7c4ea8', '#4d5fb8', '#b5566a', '#3c8fa5', '#8a6a3a'];
     const shelfH = Math.max(110, H / 5.2);
     const rows = Math.ceil(H / shelfH) + 1;
-    // the 독서 영수증 book stands on the top shelf at the left; the books there make room for it
-    const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045)), rcGap = RECEIPT ? [rcX - 2, rcX + rcW + 6] : null;
+    // the 독서 영수증 book sits on its own little wall shelf at the top left; the top row leaves that corner empty
+    const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045)), rcShelfX1 = rcX + 88;
+    const rcGap = RECEIPT ? [0, rcShelfX1 + 6] : null;
     for (let r = 0; r < rows; r++) {
       const baseY = (r + 1) * shelfH;
       let x = -10;
@@ -977,17 +978,33 @@ window.SFX = (() => {
       sctx.fillRect(gold.rect.x + 3, gold.rect.y + 10, w - 6, 2);
       sctx.fillRect(gold.rect.x + 3, gold.rect.y + h * 0.7, w - 6, 2);
     }
-    // the 독서 영수증 book: a plain navy book with a receipt slip poking out of the top like a bookmark,
-    // under a small pool of warm light
+    // the 독서 영수증 book on its own little wall shelf, a little above the top row: a navy book with
+    // a receipt slip poking out of the top like a bookmark, two small books beside it, under a small pool of warm light
     if (RECEIPT) {
-      const baseY = shelfH - 8, w = rcW, h = Math.min(104, shelfH * 0.64), x = rcX, top = baseY - h;
-      const slipH = Math.min(40, h * 0.4), slipW = 16;
+      const boardY = Math.round(shelfH - 8 - shelfH * 0.22), x = rcX, w = rcW;
+      const slipH = Math.min(28, shelfH * 0.18), slipW = 16;
+      const h = Math.round(Math.max(52, Math.min(90, boardY - slipH - 4))), top = boardY - h;
       receiptRect = { x, y: top - slipH, w, h: h + slipH };
-      const lx = x + w / 2, ly = top, lr = h * 1.05;
+      const lx = x + w / 2, ly = top, lr = h * 1.15;
       const pool = sctx.createRadialGradient(lx, ly, 2, lx, ly, lr);
       pool.addColorStop(0, 'rgba(255, 216, 150, .2)'); pool.addColorStop(1, 'rgba(255, 216, 150, 0)');
       sctx.fillStyle = pool;
-      sctx.fillRect(lx - lr, ly - lr, lr * 2, Math.min(lr * 2, baseY - (ly - lr)));
+      sctx.fillRect(lx - lr, ly - lr, lr * 2, lr * 2);
+      // two small books beside it, in the room's dim colours
+      [[x + w + 7, 13, 0.62, '#7c4ea8'], [x + w + 22, 15, 0.74, '#2f7d6d'], [x + w + 39, 12, 0.55, '#c08a3e']].forEach(([bx, bw, f, col]) => {
+        if (bx + bw > rcShelfX1 - 4) return;
+        sctx.globalAlpha = 0.55; sctx.fillStyle = col;
+        roundRect(sctx, bx, boardY - h * f, bw, h * f, 2); sctx.fill();
+        sctx.globalAlpha = 0.3; sctx.fillStyle = '#fff';
+        sctx.fillRect(bx + 2, boardY - h * f + 6, bw - 4, 2);
+        sctx.globalAlpha = 1;
+      });
+      // the shelf board and two small brackets under it
+      sctx.fillStyle = '#5a3f2c'; sctx.fillRect(6, boardY, rcShelfX1 - 6, 9);
+      sctx.fillStyle = '#8a6440'; sctx.fillRect(6, boardY, rcShelfX1 - 6, 2.5);
+      sctx.fillStyle = 'rgba(0, 0, 0, .4)'; sctx.fillRect(6, boardY + 9, rcShelfX1 - 6, 6);
+      sctx.fillStyle = '#4a3324';
+      [16, rcShelfX1 - 18].forEach(bx => { sctx.beginPath(); sctx.moveTo(bx, boardY + 9); sctx.lineTo(bx + 8, boardY + 9); sctx.lineTo(bx, boardY + 22); sctx.closePath(); sctx.fill(); });
       // the receipt slip, its top torn in a zigzag, a few printed lines on it
       sctx.save();
       sctx.translate(x + w / 2 + 3, top + 8); sctx.rotate(0.08);
@@ -1005,12 +1022,12 @@ window.SFX = (() => {
       sctx.fillStyle = cover;
       roundRect(sctx, x, top, w, h, 3); sctx.fill();
       sctx.fillStyle = 'rgba(255, 255, 255, .15)';
-      sctx.fillRect(x + 4, top + 10, w - 8, 3); sctx.fillRect(x + 4, baseY - 15, w - 8, 3);
-      const chars = [...RECEIPT.spine], step = Math.min(17, (h - 34) / chars.length);
-      sctx.fillStyle = 'rgba(240, 232, 255, .85)';
-      sctx.font = `${Math.round(Math.min(15, step - 2))}px 'Jua', 'Malgun Gothic', sans-serif`;
+      sctx.fillRect(x + 4, top + 10, w - 8, 3); sctx.fillRect(x + 4, boardY - 15, w - 8, 3);
+      const chars = [...RECEIPT.spine], step = Math.min(15, (h - 24) / chars.length);
+      sctx.fillStyle = 'rgba(240, 232, 255, .9)';
+      sctx.font = `${Math.round(Math.max(9, Math.min(13, step)))}px 'Jua', 'Malgun Gothic', sans-serif`;
       sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
-      chars.forEach((ch, k) => sctx.fillText(ch, x + w / 2, top + 22 + step * (k + 0.5)));
+      chars.forEach((ch, k) => sctx.fillText(ch, x + w / 2, top + 16 + step * (k + 0.5)));
       sctx.textAlign = 'start'; sctx.textBaseline = 'alphabetic';
     }
     // diagonal sunbeam from the top-left window
