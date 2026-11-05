@@ -921,9 +921,8 @@ window.SFX = (() => {
     const palette = ['#5b3f8f', '#3f6fa8', '#a6466f', '#c08a3e', '#2f7d6d', '#7c4ea8', '#4d5fb8', '#b5566a', '#3c8fa5', '#8a6a3a'];
     const shelfH = Math.max(110, H / 5.2);
     const rows = Math.ceil(H / shelfH) + 1;
-    // the 독서 영수증 book sits on its own little wall shelf at the top left; the top row leaves that corner empty
-    const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045)), rcShelfX1 = rcX + 88;
-    const rcGap = RECEIPT ? [0, rcShelfX1 + 6] : null;
+    // the top row holds only the 독서 영수증 book, standing at the left like any other book
+    const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045));
     // the hidden golden book (eggs.js) stands in a gap of its own on a shelf in the middle band, near a side
     let goldRow = -1, goldGap = null;
     if (gold && !gold.found) {
@@ -940,7 +939,7 @@ window.SFX = (() => {
         const bw = 14 + rnd() * 26;
         const bh = shelfH * (0.55 + rnd() * 0.32);
         const tilt = rnd() < 0.06 ? (rnd() - 0.5) * 0.25 : 0;
-        if ((r === 0 && rcGap && x + bw > rcGap[0] && x < rcGap[1]) || (r === goldRow && x + bw > goldGap[0] && x < goldGap[1])) {
+        if ((r === 0 && RECEIPT) || (r === goldRow && x + bw > goldGap[0] && x < goldGap[1])) {
           x += bw + (rnd() < 0.08 ? 20 + rnd() * 30 : 0);
           continue;
         }
@@ -974,23 +973,6 @@ window.SFX = (() => {
       [10, 16, h * 0.7, h * 0.7 + 6].forEach(yy => sctx.fillRect(x + 2, y + yy, w - 4, 2));
       sctx.globalAlpha = 1;
     }
-    // the 독서 영수증 book's little wall shelf, in the same wood and book colours as the shelves around it
-    // (drawn before the room is dimmed, so it sits in the same light)
-    const rcBoardY = Math.round(shelfH - 8 - shelfH * 0.22);
-    if (RECEIPT) {
-      const h = Math.min(90, rcBoardY - 30);
-      [[rcX + rcW + 7, 13, 0.62, 0], [rcX + rcW + 22, 15, 0.74, 4], [rcX + rcW + 39, 12, 0.55, 3]].forEach(([bx, bw, f, ci]) => {
-        if (bx + bw > rcShelfX1 - 4) return;
-        sctx.globalAlpha = 0.28; sctx.fillStyle = palette[ci];
-        roundRect(sctx, bx, rcBoardY - h * f, bw, h * f, 2); sctx.fill();
-        sctx.globalAlpha = 0.18; sctx.fillStyle = '#fff';
-        sctx.fillRect(bx + 2, rcBoardY - h * f + 6, bw - 4, 2);
-      });
-      sctx.globalAlpha = 0.55; sctx.fillStyle = '#3a2a1f';
-      sctx.fillRect(6, rcBoardY, rcShelfX1 - 6, 10);
-      [16, rcShelfX1 - 18].forEach(bx => { sctx.beginPath(); sctx.moveTo(bx, rcBoardY + 10); sctx.lineTo(bx + 8, rcBoardY + 10); sctx.lineTo(bx, rcBoardY + 22); sctx.closePath(); sctx.fill(); });
-      sctx.globalAlpha = 1;
-    }
     // dim the room so the beam pops
     const dim = sctx.createRadialGradient(W * 0.5, H * 0.55, 0, W * 0.5, H * 0.55, Math.max(W, H) * 0.8);
     dim.addColorStop(0, 'rgba(18,14,31,0.25)');
@@ -1004,12 +986,12 @@ window.SFX = (() => {
       sheen.addColorStop(0, 'rgba(255, 214, 120, .16)'); sheen.addColorStop(1, 'rgba(255, 214, 120, 0)');
       sctx.fillStyle = sheen; sctx.fillRect(x + w / 2 - h * 0.6, y - h * 0.2, h * 1.2, h * 1.2);
     }
-    // the 독서 영수증 book on its little wall shelf: a navy book with a receipt slip poking out of the top
-    // like a bookmark, a touch brighter than the books around it, under a faint pool of warm light
+    // the 독서 영수증 book alone on the top row: a navy book as tall as the books on the other rows, with a
+    // receipt slip poking out of the top like a bookmark, a touch brighter than the rest, under a faint warm light
     if (RECEIPT) {
-      const boardY = rcBoardY, x = rcX, w = rcW;
-      const slipH = Math.min(28, shelfH * 0.18), slipW = 16;
-      const h = Math.round(Math.max(52, Math.min(90, boardY - slipH - 4))), top = boardY - h;
+      const boardY = shelfH - 8, x = rcX, w = rcW;
+      const h = Math.round(shelfH * 0.72), top = boardY - h;
+      const slipH = Math.max(12, Math.min(28, top - 4)), slipW = 16;
       receiptRect = { x, y: top - slipH, w, h: h + slipH };
       const lx = x + w / 2, ly = top + h * 0.3, lr = h * 0.9;
       const pool = sctx.createRadialGradient(lx, ly, 2, lx, ly, lr);
