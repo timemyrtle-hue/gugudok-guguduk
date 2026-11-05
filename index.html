@@ -1637,8 +1637,10 @@ window.SFX = (() => {
   // how many times the page has been opened, from GoatCounter (needs "Allow adding visitor counts" on in its settings)
   function showVisitCount() {
     const el = document.getElementById('visitCount');
-    fetch('https://gugu.goatcounter.com/counter/TOTAL.json')
-      .then(r => r.ok ? r.json() : Promise.reject())
+    const get = path => fetch('https://gugu.goatcounter.com/counter/' + encodeURIComponent(path) + '.json')
+      .then(r => r.ok ? r.json() : Promise.reject());
+    // the whole site's total first; if that isn't available, this page's own count
+    get('TOTAL').catch(() => get(location.pathname))
       .then(d => {
         const n = parseInt(String(d.count).replace(/[^0-9]/g, ''), 10);
         if (!n) return;
