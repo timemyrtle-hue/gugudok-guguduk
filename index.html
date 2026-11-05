@@ -3216,59 +3216,6 @@ window.SFX = (() => {
     o.drawImage(a, 0, 0, out.width, out.height);
     return out;
   }
-  // a character in print: still black and white, but drawn so it reads clearly —
-  // a firm outline around the figure, its inner lines (eyes, hat, hands) inked,
-  // and fine dots only for the shading
-  function thermalFigure(img, h) {
-    const w = Math.round(h * img.width / img.height);
-    const a = document.createElement('canvas');
-    a.width = w; a.height = h;
-    const x = a.getContext('2d', { willReadFrequently: true });
-    x.imageSmoothingQuality = 'high';
-    x.drawImage(img, 0, 0, w, h);
-    const im = x.getImageData(0, 0, w, h), d = im.data, n = w * h;
-    const alpha = new Uint8Array(n), lum = new Float32Array(n);
-    for (let i = 0; i < n; i++) {
-      alpha[i] = d[i * 4 + 3];
-      const l = d[i * 4] * 0.299 + d[i * 4 + 1] * 0.587 + d[i * 4 + 2] * 0.114;
-      // over a white page
-      lum[i] = 255 - (255 - l) * alpha[i] / 255;
-    }
-    const inside = i => alpha[i] > 110;
-    const L = (xx, yy) => lum[Math.min(h - 1, Math.max(0, yy)) * w + Math.min(w - 1, Math.max(0, xx))];
-    const ink = new Uint8Array(n);
-    // 1. the outline: inside pixels that touch the outside within 2 pixels
-    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
-      const i = yy * w + xx;
-      if (!inside(i)) continue;
-      edge: for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-        const X = xx + dx, Y = yy + dy;
-        if (X < 0 || Y < 0 || X >= w || Y >= h || !inside(Y * w + X)) { ink[i] = 1; break edge; }
-      }
-    }
-    // 2. inner lines where the brightness changes sharply (Sobel)
-    for (let yy = 1; yy < h - 1; yy++) for (let xx = 1; xx < w - 1; xx++) {
-      const i = yy * w + xx;
-      if (!inside(i)) continue;
-      const gx = -L(xx - 1, yy - 1) - 2 * L(xx - 1, yy) - L(xx - 1, yy + 1) + L(xx + 1, yy - 1) + 2 * L(xx + 1, yy) + L(xx + 1, yy + 1);
-      const gy = -L(xx - 1, yy - 1) - 2 * L(xx, yy - 1) - L(xx + 1, yy - 1) + L(xx - 1, yy + 1) + 2 * L(xx, yy + 1) + L(xx + 1, yy + 1);
-      if (Math.hypot(gx, gy) > 150) ink[i] = 1;
-    }
-    // 3. shading: dark parts solid, mid tones in fine ordered dots, light parts left as paper
-    const bayer = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
-    for (let yy = 0; yy < h; yy++) for (let xx = 0; xx < w; xx++) {
-      const i = yy * w + xx;
-      if (ink[i] || !inside(i)) continue;
-      const tone = 1 - lum[i] / 255;                 // 0 white … 1 black
-      const t = Math.pow(tone, 0.85) * 1.2 - 0.16;   // light greys (the white face and body) stay paper
-      if (t > (bayer[(yy % 4) * 4 + (xx % 4)] + 0.5) / 16) ink[i] = 1;
-    }
-    for (let i = 0; i < n; i++) {
-      d[i * 4] = 42; d[i * 4 + 1] = 36; d[i * 4 + 2] = 51; d[i * 4 + 3] = ink[i] ? 255 : 0;
-    }
-    x.putImageData(im, 0, 0);
-    return a;
-  }
   function starShape(c, cx, cy, r, filled) {
     c.beginPath();
     for (let k = 0; k < 10; k++) {
@@ -3328,9 +3275,10 @@ window.SFX = (() => {
     // 구구덕 in print, then the heading
     const duk = IMGS['duk-read'];
     if (duk && duk.width) {
-      const pic = thermalFigure(duk, 150);
+      const h = 76, w = Math.round(h * duk.width / duk.height);
+      const pic = thermal((x, ww, hh) => x.drawImage(duk, 0, 0, ww, hh), w, h, 2);
       c.drawImage(pic, MID - pic.width / 2, y);
-      y += pic.height + 16;
+      y += pic.height + 14;
     }
     center(R.title, `50px ${RC_HEAD}`, 66);
     center('R E A D I N G   R E C E I P T', mono(20), 34);
