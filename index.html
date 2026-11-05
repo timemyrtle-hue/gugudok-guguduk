@@ -930,7 +930,7 @@ window.SFX = (() => {
       const books = [{ w: 14, f: 0.9, c: 4 }, { w: 12, f: 0.76, c: 3 }, { w: 15, f: 0.84, c: 0 }];
       let x = rx + rcW + 3;
       books.forEach(b => { b.x = x; x += b.w + 1; });
-      return { y, h, lean, rx, reach, x0, x1: x + 10, books };
+      return { y, h, lean, rx, reach, x0, x1: x + 24, books };
     })() : null;
     // the hidden golden book (eggs.js) stands in a gap of its own on a shelf in the middle band, near a side
     let goldRow = -1, goldGap = null;
@@ -1019,12 +1019,12 @@ window.SFX = (() => {
       receiptRect = { x: rx - 4, y: y - h - slipH, w: reach + 8, h: h + slipH + 4 };
       const lx = rx + reach / 2, ly = y - h * 0.6, lr = h;
       const pool = sctx.createRadialGradient(lx, ly, 2, lx, ly, lr);
-      pool.addColorStop(0, 'rgba(255, 216, 150, .14)'); pool.addColorStop(1, 'rgba(255, 216, 150, 0)');
+      pool.addColorStop(0, 'rgba(255, 216, 150, .22)'); pool.addColorStop(1, 'rgba(255, 216, 150, 0)');
       sctx.fillStyle = pool;
       sctx.fillRect(lx - lr, ly - lr, lr * 2, lr * 2);
       sctx.save();
       sctx.translate(rx, y); sctx.rotate(lean);
-      sctx.globalAlpha = 0.75;
+      sctx.globalAlpha = 0.9;
       // the receipt slip, its top torn in a zigzag, a few printed lines on it
       sctx.save();
       sctx.translate(w / 2 + 3, -h + 8); sctx.rotate(0.06);
