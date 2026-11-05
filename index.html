@@ -266,6 +266,19 @@
   /* the game window's own ✕ sits top-right of its card; keep clear of it on narrow phones */
   body:has(#quiz:not([hidden])) #soundBtn { top: auto; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 
+  /* ----- 배경 음악 버튼 (under the sound button; off until someone taps it) ----- */
+  #musicBtn {
+    position: fixed; z-index: 45;
+    top: calc(64px + env(safe-area-inset-top, 0px)); right: max(12px, env(safe-area-inset-right, 0px));
+    width: 44px; height: 44px; border-radius: 50%; cursor: pointer; padding: 0;
+    border: 2px solid rgba(255,255,255,.25); background: rgba(40, 24, 64, .6); color: #fff;
+    font-size: 19px; line-height: 1; backdrop-filter: blur(4px); opacity: .6;
+  }
+  #musicBtn.on { opacity: 1; border-color: #ffd98f; box-shadow: 0 0 12px rgba(255, 217, 143, .45); }
+  #musicBtn:focus-visible { outline: 2px solid #ffd98f; outline-offset: 2px; }
+  body.kbd #musicBtn { display: none; }
+  body:has(#quiz:not([hidden])) #musicBtn { top: auto; bottom: calc(64px + env(safe-area-inset-bottom, 0px)); }
+
   /* ----- 독서 취향 테스트 ----- */
   #gameBtn {
     flex: none; height: 52px; padding: 0 18px; border-radius: 26px; cursor: pointer;
@@ -675,6 +688,7 @@
 
 <!-- sound on / off (remembered on this phone) -->
 <button id="soundBtn" type="button" aria-label="효과음 끄기" title="효과음 켜기/끄기">🔊</button>
+<button id="musicBtn" type="button" aria-label="배경 음악 켜기" aria-pressed="false" title="배경 음악 켜기/끄기">🎵</button>
 
 <script>
 // ---------- 효과음 (all made in the browser with Web Audio: no sound files) ----------
@@ -804,6 +818,44 @@ window.SFX = (() => {
     if (!muted) wake();
   });
   return { play, setMuted, get muted() { return muted; } };
+})();
+</script>
+
+<script>
+// 배경 음악: 「Main Menu - Dark」 by 버블5297 (OpenGameArt, CC0 퍼블릭 도메인 — 출처 표시 의무 없음)
+// https://opengameart.org/ 에서 받은 원본(wav)을 96kbps mp3로 줄여 music/bgm.mp3 에 둠.
+// 처음엔 꺼져 있고 🎵 버튼을 눌러야 받기 시작해요(데이터 아끼기). 다른 앱으로 가면 잠깐 멈춰요.
+(() => {
+  const VOLUME = 0.35;
+  const btn = document.getElementById('musicBtn');
+  let audio = null, on = false;
+  const toastEl = document.getElementById('toast');
+  let tTimer = 0;
+  function say(msg) {
+    if (!toastEl) return;
+    toastEl.textContent = msg; toastEl.classList.add('show');
+    clearTimeout(tTimer); tTimer = setTimeout(() => toastEl.classList.remove('show'), 2200);
+  }
+  function paint() {
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', String(on));
+    btn.setAttribute('aria-label', on ? '배경 음악 끄기' : '배경 음악 켜기');
+  }
+  function start() {
+    if (!audio) { audio = new Audio('music/bgm.mp3'); audio.loop = true; audio.preload = 'auto'; audio.volume = VOLUME; }
+    const p = audio.play();
+    if (p && p.catch) p.catch(() => { on = false; paint(); });
+  }
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    on = !on; paint();
+    if (on) { start(); say('🎵 배경 음악 켬'); } else { if (audio) audio.pause(); say('🎵 배경 음악 끔'); }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (!audio || !on) return;
+    if (document.hidden) audio.pause(); else start();
+  });
+  paint();
 })();
 </script>
 
