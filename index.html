@@ -42,6 +42,10 @@
     font-family: 'Gaegu', sans-serif; font-size: clamp(16px, 2.2vw, 26px);
     color: var(--muted); letter-spacing: 2px;
   }
+  /* on a phone the long name line stays clear of the sound button and the shelf book */
+  @media (max-width: 600px) {
+    #title .sub { font-size: min(16px, calc((100vw - 140px) / 16)); letter-spacing: 0; white-space: nowrap; }
+  }
   #title h1 {
     margin: 2px 0 0; font-size: clamp(34px, 5.5vw, 66px); font-weight: normal;
     letter-spacing: 4px; text-shadow: 0 4px 18px rgba(0,0,0,.45);
@@ -608,12 +612,12 @@
 <canvas id="stage"></canvas>
 
 <header id="title" aria-live="polite">
-  <div class="sub" data-split>구미도서관 캐릭터</div>
+  <div class="sub" data-split>경상북도교육청 구미도서관 캐릭터</div>
   <h1><span class="dok" data-split>구구독</span> <span class="duk" data-split>구구덕</span></h1>
 </header>
 
 <div id="hint">
-  <div class="line1">구미도서관 캐릭터</div>
+  <div class="line1">경상북도교육청 구미도서관 캐릭터</div>
   <div class="line2"><span class="spark">✨</span> <span class="word dok">구구독</span> <span class="word"><span class="duk">구구덕</span>을</span> <span class="word">환영해주세요</span> <span class="spark r">✨</span></div>
 </div>
 <div id="nudge" aria-hidden="true">똑똑… 우리한테 인사해 줄래?</div>
@@ -650,7 +654,7 @@
       <img id="endDok" alt="손 흔드는 구구독">
       <img id="endDuk" alt="손 흔드는 구구덕">
     </div>
-    <div class="end-sub">구미도서관 캐릭터</div>
+    <div class="end-sub">경상북도교육청 구미도서관 캐릭터</div>
     <h2><span class="dok">구구독</span> <span class="duk">구구덕</span></h2>
     <p id="endText"></p>
     <p class="end-thanks">함께해 줘서 고마워요! 💙💜</p>
@@ -1579,7 +1583,7 @@ window.SFX = (() => {
 
   // ---------- goodbye after the 10th message ----------
   // the twins say goodbye, scatter back into dust, and the end screen takes over
-  const END_AT = 10, END_LINE = '앞으로도 구미도서관 캐릭터 구구독 구구덕을 많이 사랑해 줘!';
+  const END_AT = 10, END_LINE = '앞으로도 경상북도교육청 구미도서관 캐릭터 구구독 구구덕을 많이 사랑해 줘!';
   let ending = false;
   function maybeEnd() {
     if (ending || talks < END_AT) return;
