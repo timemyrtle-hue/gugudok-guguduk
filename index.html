@@ -922,18 +922,15 @@ window.SFX = (() => {
     const shelfH = Math.max(110, H / 5.2);
     const rows = Math.ceil(H / shelfH) + 1;
     // the 독서 영수증 corner: the top row is left as bare wall, with a little wall shelf at the left.
-    // On it the 독서 영수증 book (as big as the other books) leans against its neighbour, with a few books around it.
+    // On it the 독서 영수증 book (as big as the other books) stands upright, with three books beside it.
     const rcW = 30, rc = RECEIPT ? (() => {
-      const y = Math.round(shelfH - 14), h = Math.round(shelfH * 0.72), lean = 0.22;
+      const y = Math.round(shelfH - 14), h = Math.round(shelfH * 0.72), lean = 0;
       const x0 = Math.max(8, Math.round(W * 0.02));
-      const left = [{ w: 12, f: 0.8, c: 1 }, { w: 15, f: 0.9, c: 7 }];
-      let x = x0 + 6;
-      left.forEach(b => { b.x = x; x += b.w + 1; });
-      const rx = x + 1, reach = rcW * Math.cos(lean) + h * Math.sin(lean);
-      const right = [{ w: 14, f: 0.93, c: 4 }, { w: 11, f: 0.76, c: 3 }, { w: 13, f: 0.84, c: 0 }];
-      x = Math.round(rx + reach + 1);
-      right.forEach(b => { b.x = x; x += b.w + 1; });
-      return { y, h, lean, rx, reach, x0, x1: x + 8, books: left.concat(right) };
+      const rx = x0 + 10, reach = rcW;
+      const books = [{ w: 14, f: 0.9, c: 4 }, { w: 12, f: 0.76, c: 3 }, { w: 15, f: 0.84, c: 0 }];
+      let x = rx + rcW + 3;
+      books.forEach(b => { b.x = x; x += b.w + 1; });
+      return { y, h, lean, rx, reach, x0, x1: x + 10, books };
     })() : null;
     // the hidden golden book (eggs.js) stands in a gap of its own on a shelf in the middle band, near a side
     let goldRow = -1, goldGap = null;
@@ -1014,7 +1011,7 @@ window.SFX = (() => {
       sheen.addColorStop(0, 'rgba(255, 214, 120, .16)'); sheen.addColorStop(1, 'rgba(255, 214, 120, 0)');
       sctx.fillStyle = sheen; sctx.fillRect(x + w / 2 - h * 0.6, y - h * 0.2, h * 1.2, h * 1.2);
     }
-    // the 독서 영수증 book, leaning on the little shelf: a navy book with a receipt slip poking out of the top
+    // the 독서 영수증 book on the little shelf: a navy book with a receipt slip poking out of the top
     // like a bookmark, a touch brighter than the books around it, under a faint warm light
     if (rc) {
       const { y, h, lean, rx, reach } = rc, w = rcW;
@@ -1026,7 +1023,7 @@ window.SFX = (() => {
       sctx.fillStyle = pool;
       sctx.fillRect(lx - lr, ly - lr, lr * 2, lr * 2);
       sctx.save();
-      sctx.translate(rx, y); sctx.rotate(lean);   // standing on its bottom-left corner, top resting on the next book
+      sctx.translate(rx, y); sctx.rotate(lean);
       sctx.globalAlpha = 0.75;
       // the receipt slip, its top torn in a zigzag, a few printed lines on it
       sctx.save();
