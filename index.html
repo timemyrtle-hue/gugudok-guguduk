@@ -236,8 +236,6 @@
     background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff;
   }
   #endCount { margin-top: 10px; font-size: 13px; color: #8a76ad; }
-  #visitCount { margin: 0 0 14px; font-size: 15px; color: #6f5c92; word-break: keep-all; }
-  #visitCount[hidden] { display: none; }
   @keyframes endFade { from { opacity: 0; } }
   @keyframes endPop { from { opacity: 0; transform: translateY(20px) scale(.9); } }
   @keyframes endWave { 50% { transform: translateY(-6px) rotate(-3deg); } }
@@ -660,8 +658,6 @@
     <h2><span class="dok">구구독</span> <span class="duk">구구덕</span></h2>
     <p id="endText"></p>
     <p class="end-thanks">함께해 줘서 고마워요! 💙💜</p>
-    <!-- filled from GoatCounter; stays hidden if the number can't be fetched -->
-    <p id="visitCount" hidden></p>
     <button id="endAgain" type="button">처음부터 다시</button>
     <div id="endCount"></div>
   </div>
@@ -1634,21 +1630,6 @@ window.SFX = (() => {
     }
     state = 'leave'; stateT = 0;
   }
-  // how many times the page has been opened, from GoatCounter (needs "Allow adding visitor counts" on in its settings)
-  function showVisitCount() {
-    const el = document.getElementById('visitCount');
-    const get = path => fetch('https://gugu.goatcounter.com/counter/' + encodeURIComponent(path) + '.json')
-      .then(r => r.ok ? r.json() : Promise.reject());
-    // the whole site's total first; if that isn't available, this page's own count
-    get('TOTAL').catch(() => get(location.pathname))
-      .then(d => {
-        const n = parseInt(String(d.count).replace(/[^0-9]/g, ''), 10);
-        if (!n) return;
-        el.textContent = `지금까지 ${n.toLocaleString('ko-KR')}명이 구구독 구구덕을 만났어요 🎉`;
-        el.hidden = false;
-      })
-      .catch(() => {});
-  }
   // 15 seconds on the end screen, then the page starts over for the next visitor (and forgets the name)
   function showEndScreen() {
     const end = document.getElementById('endScreen');
@@ -1657,7 +1638,6 @@ window.SFX = (() => {
     pic('duk-wave', document.getElementById('endDuk'));
     document.getElementById('endText').textContent = (visitor ? visitor.call + ', ' : '') + END_LINE;
     end.hidden = false;
-    showVisitCount();
     const count = document.getElementById('endCount');
     let left = 15;
     const tick = () => {
