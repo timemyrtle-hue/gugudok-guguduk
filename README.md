@@ -32,7 +32,3 @@
 | `serve.js` | 내 컴퓨터에서 실행할 때 쓰는 작은 서버 (`node serve.js` → http://localhost:5173) |
 
 포즈 이미지를 바꾸면 `images/chars.js`도 다시 만들어야 해요.
-
-## 배경 음악
-- 「Main Menu - Dark」 — 버블5297, OpenGameArt, CC0(퍼블릭 도메인). 원본 wav를 96kbps mp3(`music/bgm.mp3`)로 줄여 씀. 출처 표시 의무는 없지만 고마운 마음으로 적어 둠.
-- 🎵 버튼을 눌러야 켜지고(처음엔 꺼짐), 그때 파일을 받아요.
