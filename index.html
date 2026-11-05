@@ -98,6 +98,8 @@
     z-index: 2; width: min(960px, calc(100vw - 32px)); word-break: keep-all;
     text-align: center; pointer-events: none; transition: opacity .6s;
   }
+  /* a soft dark patch behind the welcome words, so they read clearly over the window */
+  #hint { background: radial-gradient(closest-side, rgba(13, 10, 30, .7), rgba(13, 10, 30, 0)); padding: 26px 0; }
   #hint.gone { opacity: 0; }
   #hint.gone * { animation: none; }
   #hint .line1 {
@@ -913,140 +915,247 @@ window.SFX = (() => {
     return null;
   }
 
-  // ---------- background: bookshelves + light beam ----------
+  // ---------- background: an attic reading room ----------
+  // A round window under a slanted roof (the sun by day, twinkling stars and the moon by night),
+  // a little wall shelf with the 독서 영수증 book, and bookshelves whose bottom board is the line
+  // the twins stand on. Light falls from the window down the room; the dust floats in it.
+  // The room is laid out for the screen without a keyboard, so it stays still while one is open.
+  const SKY = { dayFrom: 6, nightFrom: 18 };   // the window shows the sun from 6:00 and the night sky from 18:00
+  const isDay = () => { const h = new Date().getHours(); return h >= SKY.dayFrom && h < SKY.nightFrom; };
+  let skyIsDay = isDay();
+  const room = { wx: 0, wy: 0, wr: 0, spread: 0, floorH: 0, stars: [] };
+  const BOOK_COLORS = ['#3a4a7a', '#7a3a5a', '#c99a4a', '#4a6a5a', '#e0d4c0', '#5a3a7a', '#2a5a7a', '#8a4a3a'];
+  function shadeHex(h, k) {
+    const f = v => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k);
+    return `rgb(${f(parseInt(h.slice(1, 3), 16))},${f(parseInt(h.slice(3, 5), 16))},${f(parseInt(h.slice(5, 7), 16))})`;
+  }
+  // a row of book spines standing on baseY between x0 and x1 (now and then a small pile lying flat)
+  function bookRow(c, x0, x1, baseY, maxH, rnd) {
+    let x = x0 + rnd() * 4;
+    while (x < x1 - 8) {
+      if (rnd() < 0.04 && x + 40 < x1) {
+        const n = 2 + (rnd() * 3 | 0);
+        for (let k = 0; k < n; k++) {
+          const col = BOOK_COLORS[rnd() * BOOK_COLORS.length | 0];
+          const g = c.createLinearGradient(0, baseY - (k + 1) * 8, 0, baseY - k * 8);
+          g.addColorStop(0, shadeHex(col, 0.15)); g.addColorStop(1, shadeHex(col, -0.3));
+          c.fillStyle = g; roundRect(c, x + rnd() * 3, baseY - (k + 1) * 8, 30 + rnd() * 8, 7.5, 1.5); c.fill();
+        }
+        x += 44; continue;
+      }
+      const w = 9 + rnd() * 11;
+      if (x + w > x1) break;
+      const h = maxH * (0.6 + rnd() * 0.38), col = BOOK_COLORS[rnd() * BOOK_COLORS.length | 0];
+      const lean = rnd() < 0.05 && x + w + 16 < x1;
+      c.save(); c.translate(x, baseY);
+      if (lean) c.rotate(0.16);
+      const g = c.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, shadeHex(col, -0.3)); g.addColorStop(0.4, col); g.addColorStop(1, shadeHex(col, -0.4));
+      c.fillStyle = g; roundRect(c, 0, -h, w - 1, h, 1.5); c.fill();
+      if (rnd() < 0.85) {
+        c.fillStyle = 'rgba(255, 232, 190, .35)';
+        c.fillRect(1.5, -h + 6, w - 4, 2); c.fillRect(1.5, -h * 0.22, w - 4, 1.5);
+        if (rnd() < 0.4) c.fillRect(w / 2 - 2, -h * 0.6, 3, h * 0.2);
+      }
+      c.restore();
+      x += w + (lean ? 9 : 0.5) + (rnd() < 0.05 ? 10 + rnd() * 12 : 0);
+    }
+  }
+  function shelfBoard(c, x0, x1, y, t) {
+    c.fillStyle = '#55392a'; c.fillRect(x0, y, x1 - x0, t);
+    c.fillStyle = '#8a6440'; c.fillRect(x0, y, x1 - x0, 3);
+    c.fillStyle = 'rgba(0, 0, 0, .35)'; c.fillRect(x0, y + t, x1 - x0, 7);
+  }
+  function softGlow(c, x, y, r, rgb, a) {
+    const g = c.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(${rgb}, ${a})`); g.addColorStop(1, `rgba(${rgb}, 0)`);
+    c.fillStyle = g; c.fillRect(x - r, y - r, r * 2, r * 2);
+  }
+  // where the twins' feet are: the bottom board of the shelves is drawn there
+  function feetLine() {
+    const h = fullH || H;
+    if (isShort()) return h - 92;
+    return h - (isNarrow() ? 150 : 120);
+  }
   function drawShelf() {
     sctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     sctx.clearRect(0, 0, W, H);
-    const rnd = mulberry(7);
-    const palette = ['#5b3f8f', '#3f6fa8', '#a6466f', '#c08a3e', '#2f7d6d', '#7c4ea8', '#4d5fb8', '#b5566a', '#3c8fa5', '#8a6a3a'];
-    const shelfH = Math.max(110, H / 5.2);
-    const rows = Math.ceil(H / shelfH) + 1;
-    // the 독서 영수증 book stands on the top shelf at the left; the books there make room for it
-    const rcW = 30, rcX = Math.max(12, Math.round(W * 0.045)), rcGap = RECEIPT ? [rcX - 2, rcX + rcW + 6] : null;
-    for (let r = 0; r < rows; r++) {
-      const baseY = (r + 1) * shelfH;
-      let x = -10;
-      while (x < W + 10) {
-        const bw = 14 + rnd() * 26;
-        const bh = shelfH * (0.55 + rnd() * 0.32);
-        const tilt = rnd() < 0.06 ? (rnd() - 0.5) * 0.25 : 0;
-        if (r === 0 && rcGap && x + bw > rcGap[0] && x < rcGap[1]) {
-          x += bw + (rnd() < 0.08 ? 20 + rnd() * 30 : 0);
-          continue;
-        }
-        sctx.save();
-        sctx.translate(x + bw / 2, baseY - 8);
-        sctx.rotate(tilt);
-        sctx.fillStyle = palette[Math.floor(rnd() * palette.length)];
-        sctx.globalAlpha = 0.28;
-        roundRect(sctx, -bw / 2, -bh, bw - 2, bh, 3);
-        sctx.fill();
-        sctx.globalAlpha = 0.18;
-        sctx.fillStyle = '#fff';
-        sctx.fillRect(-bw / 2 + 3, -bh + 10, bw - 8, 3);
-        sctx.fillRect(-bw / 2 + 3, -bh * 0.3, bw - 8, 2);
-        sctx.restore();
-        x += bw + (rnd() < 0.08 ? 20 + rnd() * 30 : 0);
-      }
-      sctx.globalAlpha = 0.55;
-      sctx.fillStyle = '#3a2a1f';
-      sctx.fillRect(0, baseY - 8, W, 12);
+    skyIsDay = isDay();
+    const day = skyIsDay, c = sctx, Hf = Math.max(H, fullH || H), rnd = mulberry(37);
+    const feet = Math.round(feetLine() - 3);   // the pictures keep a few clear pixels under the feet
+    const wr = Math.round(Math.max(30, Math.min(78, W * 0.2, Hf * 0.095)));
+    const wx = W / 2, wy = Math.round(Math.max(wr + (isShort() ? 30 : 80), Math.min(Hf * 0.3, feet - wr - 120)));
+    const spread = Math.min(W * 0.45, 230);
+    Object.assign(room, { wx, wy, wr, spread, floorH: Hf });
+
+    // the walls
+    const wall = c.createLinearGradient(0, 0, 0, Hf);
+    wall.addColorStop(0, day ? '#262043' : '#1d1838'); wall.addColorStop(1, day ? '#120e22' : '#0d0a1c');
+    c.fillStyle = wall; c.fillRect(0, 0, W, Hf);
+    // the slanted roof
+    const cw = Math.min(W * 0.34, 320), ch = Math.min(Hf * 0.21, 180);
+    c.fillStyle = '#271d2a';
+    c.beginPath(); c.moveTo(0, 0); c.lineTo(cw, 0); c.lineTo(0, ch); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(W, 0); c.lineTo(W - cw, 0); c.lineTo(W, ch); c.closePath(); c.fill();
+    c.strokeStyle = '#3d2c2a'; c.lineWidth = 10;
+    c.beginPath(); c.moveTo(cw, 0); c.lineTo(0, ch); c.moveTo(W - cw, 0); c.lineTo(W, ch); c.stroke();
+
+    // the round window: a blue sky with the sun, or the night sky with the moon (the stars twinkle in frame())
+    c.save(); c.beginPath(); c.arc(wx, wy, wr, 0, Math.PI * 2); c.clip();
+    const sky = c.createLinearGradient(0, wy - wr, 0, wy + wr);
+    if (day) { sky.addColorStop(0, '#5fb2ea'); sky.addColorStop(1, '#bfe4fb'); }
+    else { sky.addColorStop(0, '#1c2a62'); sky.addColorStop(1, '#41417f'); }
+    c.fillStyle = sky; c.fillRect(wx - wr, wy - wr, wr * 2, wr * 2);
+    if (day) {
+      softGlow(c, wx + wr * 0.3, wy - wr * 0.3, wr * 0.9, '255, 236, 150', 0.7);
+      c.fillStyle = '#ffd659'; c.beginPath(); c.arc(wx + wr * 0.3, wy - wr * 0.3, wr * 0.26, 0, Math.PI * 2); c.fill();
+      c.fillStyle = 'rgba(255, 255, 255, .92)';
+      [[-0.45, 0.35, 0.22], [-0.2, 0.42, 0.16], [0.35, 0.5, 0.18]].forEach(([dx, dy, r]) => {
+        c.beginPath(); c.ellipse(wx + wr * dx, wy + wr * dy, wr * r * 1.6, wr * r, 0, 0, Math.PI * 2); c.fill();
+      });
+    } else {
+      c.fillStyle = '#fff3c4'; c.beginPath(); c.arc(wx + wr * 0.33, wy - wr * 0.28, wr * 0.26, 0, Math.PI * 2); c.fill();
+      c.fillStyle = '#24306a'; c.beginPath(); c.arc(wx + wr * 0.45, wy - wr * 0.36, wr * 0.23, 0, Math.PI * 2); c.fill();
     }
-    sctx.globalAlpha = 1;
-    // dim the room so the beam pops
-    const dim = sctx.createRadialGradient(W * 0.5, H * 0.55, 0, W * 0.5, H * 0.55, Math.max(W, H) * 0.8);
-    dim.addColorStop(0, 'rgba(18,14,31,0.25)');
-    dim.addColorStop(1, 'rgba(18,14,31,0.85)');
-    sctx.fillStyle = dim;
-    sctx.fillRect(0, 0, W, H);
-    // the hidden golden book (eggs.js): on a shelf in the middle band, near a side
+    c.restore();
+    room.stars = [];
+    if (!day) for (let k = 0; k < 34; k++) {
+      const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * (wr - 6);
+      const x = wx + Math.cos(a) * d, y = wy + Math.sin(a) * d;
+      if (Math.hypot(x - (wx + wr * 0.33), y - (wy - wr * 0.28)) < wr * 0.34) continue;   // not on the moon
+      room.stars.push({ x, y, r: 0.6 + rnd() * 1.5, ph: rnd() * Math.PI * 2, sp: 0.6 + rnd() * 1.8 });
+    }
+    softGlow(c, wx, wy, wr * 2.1, day ? '255, 226, 170' : '170, 190, 255', day ? 0.22 : 0.18);
+    c.strokeStyle = '#4a3626'; c.lineWidth = Math.max(6, wr * 0.11);
+    c.beginPath(); c.arc(wx, wy, wr, 0, Math.PI * 2); c.stroke();
+    c.lineWidth = Math.max(3, wr * 0.05);
+    c.beginPath(); c.moveTo(wx - wr, wy); c.lineTo(wx + wr, wy); c.moveTo(wx, wy - wr); c.lineTo(wx, wy + wr); c.stroke();
+
+    // the shelves: rows going up from the twins' feet, as far as just under the window
+    const rowH = Math.round(Math.max(isShort() ? 62 : 95, Math.min(130, Hf * 0.155)));
+    const rows = [];
+    for (let y = feet; rows.length < 4 && (rows.length === 0 || y - rowH * 0.86 > wy + wr - 20); y -= rowH) rows.push(y);
+    const topRow = rows[rows.length - 1];
+    c.fillStyle = 'rgba(0, 0, 0, .25)'; c.fillRect(0, topRow - rowH, W, feet - topRow + rowH);
+    rows.forEach(y => { bookRow(c, 10, W - 10, y, rowH * 0.86, rnd); shelfBoard(c, 0, W, y, 12); });
+    // the floor under the bottom board
+    const fy = feet + 12;
+    const floor = c.createLinearGradient(0, fy, 0, Hf);
+    floor.addColorStop(0, '#33232a'); floor.addColorStop(1, '#1b1216');
+    c.fillStyle = floor; c.fillRect(0, fy, W, Hf - fy);
+    c.fillStyle = 'rgba(0, 0, 0, .45)'; c.fillRect(0, fy, W, 6);
+    for (let y = fy + 22, k = 0; y < Hf; y += 26 + k * 4, k++) {
+      c.fillStyle = 'rgba(0, 0, 0, .28)'; c.fillRect(0, y, W, 1.5);
+      for (let x = (k % 2) * 60 + 20; x < W; x += 120) c.fillRect(x, y - 24 - k * 4 + 2, 1.5, 22 + k * 4);
+    }
+
+    // the hidden golden book (eggs.js): on one of the upper rows, near a side
     if (gold && !gold.found) {
-      const first = Math.ceil(H * 0.3 / shelfH), last = Math.max(first, Math.floor(H * 0.55 / shelfH));
-      const baseY = (first + Math.floor(gold.row * (last - first + 1))) * shelfH;
-      const w = 15, h = shelfH * 0.6;
-      gold.rect = { x: gold.fx * W - w / 2, y: baseY - 8 - h, w, h };
-      const g = sctx.createLinearGradient(gold.rect.x, 0, gold.rect.x + w, 0);
+      const upper = rows.length > 1 ? rows.slice(1) : rows;
+      const baseY = upper[Math.min(upper.length - 1, Math.floor(gold.row * upper.length))];
+      const w = 15, h = rowH * 0.6;
+      gold.rect = { x: gold.fx * W - w / 2, y: baseY - h, w, h };
+      const g = c.createLinearGradient(gold.rect.x, 0, gold.rect.x + w, 0);
       g.addColorStop(0, '#b8862b'); g.addColorStop(0.5, '#ffe08a'); g.addColorStop(1, '#c9952f');
-      sctx.save();
-      sctx.shadowColor = 'rgba(255, 214, 120, 0.7)'; sctx.shadowBlur = 10;
-      sctx.fillStyle = g;
-      roundRect(sctx, gold.rect.x, gold.rect.y, w, h, 3);
-      sctx.fill();
-      sctx.restore();
-      sctx.fillStyle = 'rgba(120, 80, 20, 0.5)';
-      sctx.fillRect(gold.rect.x + 3, gold.rect.y + 10, w - 6, 2);
-      sctx.fillRect(gold.rect.x + 3, gold.rect.y + h * 0.7, w - 6, 2);
+      c.save();
+      c.shadowColor = 'rgba(255, 214, 120, 0.7)'; c.shadowBlur = 10;
+      c.fillStyle = g; roundRect(c, gold.rect.x, gold.rect.y, w, h, 3); c.fill();
+      c.restore();
+      c.fillStyle = 'rgba(120, 80, 20, 0.5)';
+      c.fillRect(gold.rect.x + 3, gold.rect.y + 10, w - 6, 2);
+      c.fillRect(gold.rect.x + 3, gold.rect.y + h * 0.7, w - 6, 2);
     }
-    // the 독서 영수증 book: a plain navy book with a receipt slip poking out of the top like a bookmark,
-    // under a small pool of warm light
+
+    // the little wall shelf left of the window, with the 독서 영수증 book: a navy book with a receipt
+    // slip poking out of the top like a bookmark, under a small pool of warm light
     if (RECEIPT) {
-      const baseY = shelfH - 8, w = rcW, h = Math.min(104, shelfH * 0.64), x = rcX, top = baseY - h;
-      const slipH = Math.min(40, h * 0.4), slipW = 16;
+      const sy = Math.min(wy + 50, topRow - rowH * 0.86 - 14);
+      const x = 18, w = 30, h = Math.round(Math.min(88, Math.max(50, Hf * 0.105))), top = sy - h;
+      const bx1 = Math.max(x + w + 20, Math.min(x + 86, wx - wr - 16));
+      const slipH = Math.min(36, h * 0.42), slipW = 16;
       receiptRect = { x, y: top - slipH, w, h: h + slipH };
-      const lx = x + w / 2, ly = top, lr = h * 1.05;
-      const pool = sctx.createRadialGradient(lx, ly, 2, lx, ly, lr);
-      pool.addColorStop(0, 'rgba(255, 216, 150, .2)'); pool.addColorStop(1, 'rgba(255, 216, 150, 0)');
-      sctx.fillStyle = pool;
-      sctx.fillRect(lx - lr, ly - lr, lr * 2, Math.min(lr * 2, baseY - (ly - lr)));
-      // the receipt slip, its top torn in a zigzag, a few printed lines on it
-      sctx.save();
-      sctx.translate(x + w / 2 + 3, top + 8); sctx.rotate(0.08);
-      sctx.fillStyle = '#efe7da';
-      sctx.beginPath();
-      sctx.moveTo(-slipW / 2, 0); sctx.lineTo(-slipW / 2, -slipH + 4);
-      for (let k = 0; k < 4; k++) { sctx.lineTo(-slipW / 2 + slipW * (k + 0.5) / 4, -slipH); sctx.lineTo(-slipW / 2 + slipW * (k + 1) / 4, -slipH + 4); }
-      sctx.lineTo(slipW / 2, 0); sctx.closePath(); sctx.fill();
-      sctx.fillStyle = 'rgba(60, 50, 70, .5)';
-      [0.78, 0.62, 0.46].forEach(f => sctx.fillRect(-slipW / 2 + 3, -slipH * f, slipW - 6, 2));
-      sctx.restore();
-      // the book: navy cloth, a little rounded, two light bands and its title down the spine
-      const cover = sctx.createLinearGradient(x, 0, x + w, 0);
+      softGlow(c, x + w / 2, top, h * 1.05, '255, 216, 150', 0.2);
+      bookRow(c, x + w + 6, bx1 - 4, sy, h * 0.78, rnd);
+      shelfBoard(c, 6, bx1, sy, 10);
+      c.save();
+      c.translate(x + w / 2 + 3, top + 8); c.rotate(0.08);
+      c.fillStyle = '#efe7da';
+      c.beginPath();
+      c.moveTo(-slipW / 2, 0); c.lineTo(-slipW / 2, -slipH + 4);
+      for (let k = 0; k < 4; k++) { c.lineTo(-slipW / 2 + slipW * (k + 0.5) / 4, -slipH); c.lineTo(-slipW / 2 + slipW * (k + 1) / 4, -slipH + 4); }
+      c.lineTo(slipW / 2, 0); c.closePath(); c.fill();
+      c.fillStyle = 'rgba(60, 50, 70, .5)';
+      [0.78, 0.62, 0.46].forEach(f => c.fillRect(-slipW / 2 + 3, -slipH * f, slipW - 6, 2));
+      c.restore();
+      const cover = c.createLinearGradient(x, 0, x + w, 0);
       cover.addColorStop(0, '#22305a'); cover.addColorStop(0.45, '#3a4f8c'); cover.addColorStop(1, '#1d2950');
-      sctx.fillStyle = cover;
-      roundRect(sctx, x, top, w, h, 3); sctx.fill();
-      sctx.fillStyle = 'rgba(255, 255, 255, .15)';
-      sctx.fillRect(x + 4, top + 10, w - 8, 3); sctx.fillRect(x + 4, baseY - 15, w - 8, 3);
-      const chars = [...RECEIPT.spine], step = Math.min(17, (h - 34) / chars.length);
-      sctx.fillStyle = 'rgba(240, 232, 255, .85)';
-      sctx.font = `${Math.round(Math.min(15, step - 2))}px 'Jua', 'Malgun Gothic', sans-serif`;
-      sctx.textAlign = 'center'; sctx.textBaseline = 'middle';
-      chars.forEach((ch, k) => sctx.fillText(ch, x + w / 2, top + 22 + step * (k + 0.5)));
-      sctx.textAlign = 'start'; sctx.textBaseline = 'alphabetic';
+      c.fillStyle = cover; roundRect(c, x, top, w, h, 3); c.fill();
+      c.fillStyle = 'rgba(255, 255, 255, .15)';
+      c.fillRect(x + 4, top + 10, w - 8, 3); c.fillRect(x + 4, sy - 15, w - 8, 3);
+      const chars = [...RECEIPT.spine], step = Math.min(15, (h - 30) / chars.length);
+      c.fillStyle = 'rgba(240, 232, 255, .85)';
+      c.font = `${Math.round(Math.min(13, step - 1))}px 'Jua', 'Malgun Gothic', sans-serif`;
+      c.textAlign = 'center'; c.textBaseline = 'middle';
+      chars.forEach((ch, k) => c.fillText(ch, x + w / 2, top + 20 + step * (k + 0.5)));
+      c.textAlign = 'start'; c.textBaseline = 'alphabetic';
     }
-    // diagonal sunbeam from the top-left window
+
+    // light from the window down into the room: warm sunlight by day, moonlight by night
     const beam = beamPoly();
-    const g = sctx.createLinearGradient(beam[0][0], 0, W * 0.6, H);
-    g.addColorStop(0, 'rgba(255,230,180,0.30)');
-    g.addColorStop(1, 'rgba(255,230,180,0.03)');
-    sctx.fillStyle = g;
-    sctx.beginPath();
-    beam.forEach(([px, py], i) => i ? sctx.lineTo(px, py) : sctx.moveTo(px, py));
-    sctx.closePath();
-    sctx.filter = 'blur(18px)';
-    sctx.fill();
-    sctx.filter = 'none';
+    const g = c.createLinearGradient(0, wy, 0, Hf);
+    const rgb = day ? '255, 228, 175' : '190, 205, 255';
+    g.addColorStop(0, `rgba(${rgb}, ${day ? 0.3 : 0.26})`); g.addColorStop(1, `rgba(${rgb}, 0.03)`);
+    c.fillStyle = g;
+    c.beginPath(); beam.forEach(([px, py], i) => i ? c.lineTo(px, py) : c.moveTo(px, py)); c.closePath();
+    c.filter = 'blur(20px)'; c.fill(); c.filter = 'none';
+    // a soft vignette at the edges
+    const v = c.createRadialGradient(W / 2, Hf * 0.55, Math.min(W, Hf) * 0.25, W / 2, Hf * 0.55, Math.max(W, Hf) * 0.75);
+    v.addColorStop(0, 'rgba(0, 0, 0, 0)'); v.addColorStop(1, 'rgba(0, 0, 0, .5)');
+    c.fillStyle = v; c.fillRect(0, 0, W, Hf);
   }
+  // the light from the window, widening as it falls
   function beamPoly() {
-    return [[W * 0.12, -20], [W * 0.42, -20], [W * 0.88, H + 20], [W * 0.38, H + 20]];
+    const { wx, wy, wr, spread } = room, Hf = room.floorH || H;
+    return [[wx - wr * 0.6, wy], [wx + wr * 0.6, wy], [wx + spread, Hf + 20], [wx - spread * 0.6, Hf + 20]];
+  }
+  function beamAt(y) {
+    const { wx, wy, wr, spread } = room, Hf = room.floorH || H;
+    const t = Math.max(0, Math.min(1, (y - wy) / (Hf - wy)));
+    const l = wx - wr * 0.6 + (wr * 0.6 - spread * 0.6) * t, r = wx + wr * 0.6 + (spread - wr * 0.6) * t;
+    return { cx: (l + r) / 2, half: (r - l) / 2 };
   }
   function inBeam(x, y) {
-    // horizontal distance from the beam's centre line, normalised to its half width
-    const t = y / H;
-    const cx = W * (0.27 + 0.36 * t);
-    const half = W * (0.15 + 0.1 * t);
+    if (y < room.wy) return 0;
+    const { cx, half } = beamAt(y);
     return Math.max(0, 1 - Math.abs(x - cx) / half);
   }
   function randomIdlePos() {
-    // most dust lives in the light beam, a little drifts elsewhere
+    // most dust floats in the light from the window, a little drifts elsewhere
     if (Math.random() < 0.8) {
-      const y = Math.random() * H;
-      const t = y / H;
-      const cx = W * (0.27 + 0.36 * t);
-      const half = W * (0.15 + 0.1 * t);
+      const y = room.wy + Math.random() * (H - room.wy);
+      const { cx, half } = beamAt(y);
       return [cx + (Math.random() * 2 - 1) * half * Math.random(), y];
     }
     return [Math.random() * W, Math.random() * H];
   }
+  // the stars in the night window twinkle (drawn on the stage, behind the twins)
+  function drawWindowStars(now) {
+    if (skyIsDay || !room.stars.length) return;
+    const t = now / 1000;
+    for (const s of room.stars) {
+      const a = 0.35 + 0.65 * Math.pow(0.5 + 0.5 * Math.sin(t * s.sp + s.ph), 2);
+      ctx.globalAlpha = a;
+      ctx.fillStyle = '#fff8dc';
+      ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI * 2); ctx.fill();
+      if (s.r > 1.6 && a > 0.8) {   // the brightest ones sparkle with a little cross
+        ctx.fillRect(s.x - s.r * 2.6, s.y - 0.4, s.r * 5.2, 0.8);
+        ctx.fillRect(s.x - 0.4, s.y - s.r * 2.6, 0.8, s.r * 5.2);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+  // morning and evening change the window while the page is open
+  setInterval(() => { if (isDay() !== skyIsDay) drawShelf(); }, 60000);
 
   // ---------- particles ----------
   const particles = [];
@@ -1128,7 +1237,8 @@ window.SFX = (() => {
       const cx = items.length === 1 ? W / 2
         : narrow ? W * (i === 0 ? 0.26 : 0.74)
         : W / 2 + (i === 0 ? -1 : 1) * Math.min(W * 0.22, w * 0.62);
-      const top = narrow ? bottom - h : top0 + Math.max(0, (bottom - top0 - h) / 2);
+      // feet on the bottom shelf board (drawShelf draws it at this line)
+      const top = bottom - h;
       // dx is where it is drawn; it glides to x when the layout changes
       out.push({ key, pose, img, x: cx - w / 2, dx: cx - w / 2, y: top, w, h, alpha: 0, bob: Math.random() * 6 });
     });
@@ -1233,7 +1343,8 @@ window.SFX = (() => {
       || (h >= EGGS.night.from || h < EGGS.night.to ? EGGS.night : null);
   }
 
-  function bobOffset(s) { return Math.sin(performance.now() / 420 + s.bob) * 6; }
+  // a gentle hop that only lifts, so the feet never sink into the shelf board
+  function bobOffset(s) { return (Math.sin(performance.now() / 420 + s.bob) - 1) * 2.5; }
 
   // ---------- speech bubbles ----------
   let bubbles = [];
@@ -1958,6 +2069,7 @@ window.SFX = (() => {
 
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     ctx.clearRect(0, 0, W, H);
+    drawWindowStars(now);
 
     // characters (drawn under the last flying dust)
     if (shown.length) {
