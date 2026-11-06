@@ -913,6 +913,21 @@
     }
     state = 'leave'; stateT = 0;
   }
+  // how many people have visited, from GoatCounter ("Allow adding visitor counts" is on in its settings).
+  // This page's own count first; the whole-site TOTAL as a fallback.
+  function showVisitCount() {
+    const el = document.getElementById('visitCount');
+    const get = path => fetch('https://gugu.goatcounter.com/counter/' + encodeURIComponent(path) + '.json')
+      .then(r => r.ok ? r.json() : Promise.reject());
+    get(location.pathname).catch(() => get('TOTAL'))
+      .then(d => {
+        const n = parseInt(String(d.count).replace(/[^0-9]/g, ''), 10);
+        if (!n) return;
+        el.textContent = `지금까지 ${n.toLocaleString('ko-KR')}명이 이용했어요 🎉`;
+        el.hidden = false;
+      })
+      .catch(() => {});
+  }
   // 15 seconds on the end screen, then the page starts over for the next visitor (and forgets the name)
   function showEndScreen() {
     const end = document.getElementById('endScreen');
@@ -921,6 +936,7 @@
     setPic('duk-wave', document.getElementById('endDuk'));
     document.getElementById('endText').textContent = (visitor ? visitor.call + ', ' : '') + END_LINE;
     end.hidden = false;
+    showVisitCount();
     const count = document.getElementById('endCount');
     let left = 15;
     const tick = () => {

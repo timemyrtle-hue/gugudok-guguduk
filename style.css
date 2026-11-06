@@ -227,6 +227,8 @@ body.ending #controls, body.ending #heard { display: none; }
   background: linear-gradient(90deg, #4cc6ea, #a35cf5); color: #fff;
 }
 #endCount { margin-top: 10px; font-size: 13px; color: #8a76ad; }
+#visitCount { margin: 0 0 14px; font-size: 15px; color: #6f5c92; word-break: keep-all; }
+#visitCount[hidden] { display: none; }
 @keyframes endFade { from { opacity: 0; } }
 @keyframes endPop { from { opacity: 0; transform: translateY(20px) scale(.9); } }
 @keyframes endWave { 50% { transform: translateY(-6px) rotate(-3deg); } }
