@@ -923,7 +923,7 @@
       .then(d => {
         const n = parseInt(String(d.count).replace(/[^0-9]/g, ''), 10);
         if (!n) return;
-        el.textContent = `지금까지 ${n.toLocaleString('ko-KR')}명이 이용했어요 🎉`;
+        el.textContent = `구구독 탐험 일지: 오늘까지 만난 친구 ${n.toLocaleString('ko-KR')}명 ✍️`;
         el.hidden = false;
       })
       .catch(() => {});
