@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>구구독 구구덕</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Jua&family=Gaegu:wght@700&family=Black+Han+Sans&family=Nanum+Gothic+Coding:wght@400;700&display=swap" rel="stylesheet">
+<!-- ?v=숫자: 파일을 고친 뒤 이 숫자를 올리면 휴대폰이 예전 파일(캐시) 대신 새 파일을 받아요 -->
+<link rel="stylesheet" href="style.css?v=6">
+</head>
+<body>
+<canvas id="shelf"></canvas>
+<img id="silhouette" alt="">
+<canvas id="stage"></canvas>
+
+<header id="title" aria-live="polite">
+  <div class="sub" data-split>경상북도교육청 구미도서관 캐릭터</div>
+  <h1><span class="dok" data-split>구구독</span> <span class="duk" data-split>구구덕</span></h1>
+</header>
+
+<div id="hint">
+  <div class="line1">경상북도교육청 구미도서관 캐릭터</div>
+  <div class="line2"><span class="spark">✨</span> <span class="word dok">구구독</span> <span class="word"><span class="duk">구구덕</span>을</span> <span class="word">환영해 주세요</span> <span class="spark">✨</span></div>
+</div>
+<div id="nudge" aria-hidden="true">똑똑… 우리한테 인사해 줄래?</div>
+<div id="heard"></div>
+<div id="toast"></div>
+
+<div id="quiz" hidden role="dialog" aria-modal="true" aria-label="구구독 구구덕 게임">
+  <div class="quiz-card">
+    <button class="quiz-close" type="button" aria-label="닫기">✕</button>
+    <canvas class="quiz-pose"></canvas>
+    <div class="quiz-body"></div>
+  </div>
+</div>
+
+<div id="controls">
+  <div id="quick"><button type="button">안녕! 👋</button><button type="button">환영해! 🎉</button><button type="button">반가워!</button></div>
+  <button id="gameBtn" type="button" title="구구독 구구덕 게임">🎮<span class="label"> 게임</span></button>
+  <form id="form">
+    <input id="say" autocomplete="off" placeholder="구구독 구구덕에게 환영의 말을 적어 주세요">
+    <button id="send" type="submit">말하기</button>
+  </form>
+  <!-- the name box: moved into the twin's speech bubble while they ask the visitor's name -->
+  <form id="nameForm" hidden>
+    <input id="nameIn" autocomplete="off" maxlength="12" placeholder="🙂 이름이나 별명" aria-label="이름이나 별명">
+    <button id="nameOk" type="submit">알려 주기</button>
+    <button id="nameSkip" type="button">비밀이야</button>
+  </form>
+</div>
+
+<!-- after about 10 exchanges the twins say goodbye and this end screen appears -->
+<div id="endScreen" hidden>
+  <div class="end-card" role="dialog" aria-label="끝 인사">
+    <div class="end-twins">
+      <img id="endDok" alt="손 흔드는 구구독">
+      <img id="endDuk" alt="손 흔드는 구구덕">
+    </div>
+    <div class="end-sub">경상북도교육청 구미도서관 캐릭터</div>
+    <h2><span class="dok">구구독</span> <span class="duk">구구덕</span></h2>
+    <p id="endText"></p>
+    <p class="end-thanks">함께해 줘서 고마워요! 💙💜</p>
+    <button id="endAgain" type="button">처음부터 다시</button>
+    <div id="endCount"></div>
+  </div>
+</div>
+
+<!-- sound on / off (remembered on this phone) -->
+<button id="soundBtn" type="button" aria-label="효과음 끄기" title="효과음 켜기/끄기">🔊</button>
+
+<!-- 캐릭터 그림과 내용(대사·문제·책 목록): 바꿀 내용은 대부분 이 파일들에서 고쳐요 -->
+<script src="images/chars.js?v=6"></script>
+<script src="replies.js?v=6"></script>
+<script src="names.js?v=6"></script>
+<script src="eggs.js?v=6"></script>
+<script src="todaybook.js?v=6"></script>
+<script src="receipt.js?v=6"></script>
+<script src="quiz.js?v=6"></script>
+<script src="shelf.js?v=6"></script>
+<script src="riddle.js?v=6"></script>
+<script src="story.js?v=6"></script>
+<!-- 책 속 대결의 그림과 미니게임 -->
+<script src="story-art.js?v=6"></script>
+<script src="story-games.js?v=6"></script>
+<!-- 효과음, 그리고 페이지의 모든 동작 -->
+<script src="sfx.js?v=6"></script>
+<script src="app.js?v=6"></script>
+<!-- 방문자 수 세기 (GoatCounter: https://gugu.goatcounter.com) -->
+<script data-goatcounter="https://gugu.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
+</body>
+</html>
