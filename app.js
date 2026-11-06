@@ -52,8 +52,9 @@
     duk: ['duk-music', 'duk-search', 'duk-wave', 'duk-read', 'duk-shush', 'duk-books', 'duk-think'].map(id => ({ id })),
     // concept art with both twins in one picture; `at` = where each stands, as a share of the original width
     duo: [
-      { id: 'duo-stand', at: { dok: 0.29, duk: 0.70 } },
-      { id: 'duo-cart', at: { dok: 0.39, duk: 0.68 } },
+      // pom: where to look for 구구독's hat pom (x0, y0, x1, y1 as shares of the picture), for the lamp (eggs.js)
+      { id: 'duo-stand', at: { dok: 0.29, duk: 0.70 }, pom: [0.2, 0, 0.5, 0.25] },
+      { id: 'duo-cart', at: { dok: 0.39, duk: 0.68 }, pom: [0.3, 0.4, 0.65, 0.58] },
     ],
   };
   // filled with trimmed canvases once the pictures have loaded (see the bottom of the script)
@@ -958,6 +959,8 @@
       }
     }
     let topic = topicOf(text);
+    // a welcome or a hello lights up 구구독's hat lamp (eggs.js lamp)
+    if (EGGS && EGGS.lamp && EGGS.lamp.topics.includes(topic) && state !== 'leave') whenShown(lampOn, 200);
     // "책 추천해 줘" / "무슨 책 읽을까?": 구구독 recommends today's book, or opens the draw if none was drawn yet
     if (BOOK_LIST.length && (topic === 'recommend' || topic === 'feelrecommend')) {
       if (state !== 'idle' && state !== 'shown') return;
@@ -1093,6 +1096,72 @@
     setPoses({ [key]: T.pose[key] });
     say(key, pickFresh(T[key]));
     return true;
+  }
+
+  // eggs.js lamp: the first welcome makes the pom on 구구독's hat (the reading lamp) flash red, yellow, blue
+  // only once per visit: the first welcome 구구독 hears
+  let lampUntil = 0, lampDone = false;
+  const lampCache = new WeakMap();
+  function lampOn() {
+    const L = EGGS && EGGS.lamp;
+    if (!L || lampDone || !isOut('dok')) return;
+    lampDone = true;
+    lampUntil = performance.now() + L.seconds * 1000;
+    SFX.play('gold');
+  }
+  // the pom of a picture with 구구독 in it, painted once in each lamp color (cached per picture):
+  // the pom is the biggest pale-cyan blob inside the search box, brighter than the hat.
+  // Returns { x, y, layers } (x, y: where the box starts in the picture) or null
+  function lampLayers(img, box = [0, 0, 1, 0.5]) {
+    if (lampCache.has(img)) return lampCache.get(img);
+    let found = null;
+    try {
+      const x0 = Math.round(img.width * box[0]), y0 = Math.round(img.height * box[1]);
+      const w = Math.round(img.width * box[2]) - x0, h = Math.round(img.height * box[3]) - y0;
+      let src = img;
+      if (!img.getContext) { src = document.createElement('canvas'); src.width = img.width; src.height = img.height; src.getContext('2d').drawImage(img, 0, 0); }
+      const px = src.getContext('2d').getImageData(x0, y0, w, h).data;
+      const on = new Uint8Array(w * h);
+      for (let i = 0; i < w * h; i++) {
+        const r = px[i * 4], g = px[i * 4 + 1], b = px[i * 4 + 2], a = px[i * 4 + 3];
+        if (a > 120 && g >= 235 && b >= 235 && r < g - 25) on[i] = 1;
+      }
+      // keep only the biggest blob (the pom), not small shiny spots elsewhere
+      const seen = new Int32Array(w * h), stack = [];
+      let best = 0, bestId = 0, id = 0;
+      for (let i = 0; i < w * h; i++) {
+        if (!on[i] || seen[i]) continue;
+        id++; let n = 0; stack.push(i); seen[i] = id;
+        while (stack.length) {
+          const j = stack.pop(), x = j % w; n++;
+          for (const k of [j - 1, j + 1, j - w, j + w]) {
+            if (k < 0 || k >= w * h || seen[k] || !on[k] || (k === j - 1 && x === 0) || (k === j + 1 && x === w - 1)) continue;
+            seen[k] = id; stack.push(k);
+          }
+        }
+        if (n > best) { best = n; bestId = id; }
+      }
+      if (best > w * h * 0.02) {
+        const hex = c => [1, 3, 5].map(o => parseInt(c.slice(o, o + 2), 16));
+        const layers = EGGS.lamp.colors.map(([dark, light]) => {
+          const d = hex(dark), l = hex(light), c = document.createElement('canvas');
+          c.width = w; c.height = h;
+          const cx = c.getContext('2d'), out = cx.createImageData(w, h);
+          for (let i = 0; i < w * h; i++) {
+            if (seen[i] !== bestId) continue;
+            // the pom's own shading: its red channel goes from ~120 (edge) to ~230 (lit side)
+            const t = Math.max(0, Math.min(1, (px[i * 4] - 110) / 130));
+            for (let ch = 0; ch < 3; ch++) out.data[i * 4 + ch] = d[ch] + (l[ch] - d[ch]) * t;
+            out.data[i * 4 + 3] = px[i * 4 + 3];
+          }
+          cx.putImageData(out, 0, 0);
+          return c;
+        });
+        found = { x: x0, y: y0, layers };
+      }
+    } catch (e) { found = null; }
+    lampCache.set(img, found);
+    return found;
   }
 
   let heardTimer;
@@ -1277,6 +1346,17 @@
         ctx.translate(Math.round(s.dx + s.w / 2), Math.round(s.y + s.h + by));
         ctx.scale(k, k);
         ctx.drawImage(s.img, -s.w / 2, -s.h, s.w, s.h);
+        if (now < lampUntil && (s.key === 'dok' || (isDuo(s) && s.pose.pom))) {
+          const pom = lampLayers(s.img, s.pose.pom), L = EGGS.lamp;
+          if (pom) {
+            const n = Math.floor(now / 1000 / L.step) % pom.layers.length, layer = pom.layers[n], sc = s.w / s.img.width;
+            // a glow in the same color, as if the lamp lights up around it
+            ctx.shadowColor = L.colors[n][0];
+            ctx.shadowBlur = 28 * k;
+            ctx.drawImage(layer, -s.w / 2 + pom.x * sc, -s.h + pom.y * sc, layer.width * sc, layer.height * sc);
+            ctx.shadowBlur = 0;
+          }
+        }
         ctx.restore();
       }
       ctx.globalAlpha = 1;
