@@ -975,7 +975,7 @@
       }
     }
     let topic = topicOf(text);
-    // a welcome or a hello lights up 구구독's hat lamp (eggs.js lamp)
+    // a goodbye makes 구구독's hat lamp blink (eggs.js lamp)
     if (EGGS && EGGS.lamp && EGGS.lamp.topics.includes(topic) && state !== 'leave') whenShown(lampOn, 200);
     // "책 추천해 줘" / "무슨 책 읽을까?": 구구독 recommends today's book, or opens the draw if none was drawn yet
     if (BOOK_LIST.length && (topic === 'recommend' || topic === 'feelrecommend')) {
@@ -1114,15 +1114,15 @@
     return true;
   }
 
-  // eggs.js lamp: the first welcome makes the pom on 구구독's hat (the reading lamp) flash red, yellow, blue
-  // only once per visit: the first welcome 구구독 hears
-  let lampUntil = 0, lampDone = false;
+  // eggs.js lamp: a goodbye makes the pom on 구구독's hat (the reading lamp) blink through the colors once
+  // (sky, pink, blue, sky), then it is back to its own color
+  let lampStart = 0, lampUntil = 0;
   const lampCache = new WeakMap();
   function lampOn() {
     const L = EGGS && EGGS.lamp;
-    if (!L || lampDone || !isOut('dok')) return;
-    lampDone = true;
-    lampUntil = performance.now() + L.seconds * 1000;
+    if (!L || !isOut('dok')) return;
+    lampStart = performance.now();
+    lampUntil = lampStart + L.colors.length * L.step * 1000;
     SFX.play('gold');
   }
   // the pom of a picture with 구구독 in it, painted once in each lamp color (cached per picture):
@@ -1365,7 +1365,7 @@
         if (now < lampUntil && (s.key === 'dok' || (isDuo(s) && s.pose.pom))) {
           const pom = lampLayers(s.img, s.pose.pom), L = EGGS.lamp;
           if (pom) {
-            const n = Math.floor(now / 1000 / L.step) % pom.layers.length, layer = pom.layers[n], sc = s.w / s.img.width;
+            const n = Math.min(pom.layers.length - 1, Math.floor((now - lampStart) / 1000 / L.step)), layer = pom.layers[n], sc = s.w / s.img.width;
             // a glow in the same color, as if the lamp lights up around it
             ctx.shadowColor = L.colors[n][0];
             ctx.shadowBlur = 28 * k;
