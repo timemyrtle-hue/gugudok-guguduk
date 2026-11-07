@@ -884,6 +884,7 @@
     const out = ['dok', 'duk'].filter(isOut);
     const hey = visitor ? visitor.call + ', ' : '';
     say(out[0], hey + END_LINE);
+    lampOn(); // 구구독's hat lamp blinks goodbye (eggs.js lamp)
     if (out[1]) setTimeout(() => say(out[1], '우리 또 만나~ 도서관에서 기다릴게! 💜'), 1500);
     setTimeout(startLeave, out[1] ? 5200 : 3800);
   }
@@ -975,8 +976,6 @@
       }
     }
     let topic = topicOf(text);
-    // a goodbye makes 구구독's hat lamp blink (eggs.js lamp)
-    if (EGGS && EGGS.lamp && EGGS.lamp.topics.includes(topic) && state !== 'leave') whenShown(lampOn, 200);
     // "책 추천해 줘" / "무슨 책 읽을까?": 구구독 recommends today's book, or opens the draw if none was drawn yet
     if (BOOK_LIST.length && (topic === 'recommend' || topic === 'feelrecommend')) {
       if (state !== 'idle' && state !== 'shown') return;
@@ -1114,7 +1113,7 @@
     return true;
   }
 
-  // eggs.js lamp: a goodbye makes the pom on 구구독's hat (the reading lamp) blink through the colors once
+  // eggs.js lamp: when the twins say goodbye at the end, the pom on 구구독's hat (the reading lamp) blinks through the colors once
   // (sky, pink, blue, sky), then it is back to its own color
   let lampStart = 0, lampUntil = 0;
   const lampCache = new WeakMap();
