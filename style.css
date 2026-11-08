@@ -106,26 +106,6 @@ body.kbd #title.show { opacity: 0; }
 #hint .dok { color: var(--dok); }
 #hint .duk { color: var(--duk); }
 #hint .spark { display: inline-block; font-size: .7em; }
-/* under the welcome words: a glowing line in the twins' colors with sparkles drifting below it
-   (the Sparkles effect from Aceternity UI, remade without React). It sits outside the layout,
-   so the shadow of the twins keeps its place. */
-#hint .hint-sparkles {
-  position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
-  width: min(720px, 86%); height: 76px; margin-top: 4px;
-  animation: rise .8s .6s ease-out both;
-}
-#hint .hint-sparkles::before, #hint .hint-sparkles::after {
-  content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); border-radius: 2px;
-  background: linear-gradient(90deg, transparent, var(--dok), var(--duk), transparent);
-}
-#hint .hint-sparkles::before { width: 80%; height: 3px; filter: blur(3px); opacity: .9; }
-#hint .hint-sparkles::after { width: 50%; height: 1px; background: linear-gradient(90deg, transparent, #fff3d6, transparent); }
-#hint .hint-sparkles canvas {
-  position: absolute; inset: 0; width: 100%; height: 100%;
-  -webkit-mask-image: radial-gradient(ellipse 50% 100% at 50% 0, #000 30%, transparent 85%);
-  mask-image: radial-gradient(ellipse 50% 100% at 50% 0, #000 30%, transparent 85%);
-}
-@media (max-width: 600px) { #hint .hint-sparkles { height: 54px; width: 92%; } }
 @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
 /* a slow, soft glow is the only movement once the words are in */
 @keyframes glow {
