@@ -19,6 +19,51 @@
     silhouette.style.top = top + 'px';
     silhouette.style.height = Math.min(room, 560) + 'px';
   }
+  // sparkles under the welcome words (the Sparkles effect from Aceternity UI, remade in plain canvas):
+  // tiny lights twinkle and drift below the glowing line until the first twin appears
+  (function hintSparkles() {
+    const cv = hint.querySelector('.hint-sparkles canvas');
+    if (!cv) return;
+    const c = cv.getContext('2d');
+    const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const COLORS = ['#ffffff', '#fff3d6', '#ffe2a8', '#9fe6ff', '#d6b8ff'];
+    let w = 0, h = 0, dots = [];
+    function size() {
+      const r = cv.getBoundingClientRect(), dpr = Math.min(2, window.devicePixelRatio || 1);
+      w = r.width; h = r.height;
+      cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+      c.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const n = Math.round(w * h / 110);
+      dots = Array.from({ length: n }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        r: 0.4 + Math.random() * 1.1,
+        vx: (Math.random() - 0.5) * 6, vy: 2 + Math.random() * 8,
+        t: Math.random() * Math.PI * 2, sp: 1.5 + Math.random() * 3,
+        col: COLORS[Math.floor(Math.random() * COLORS.length)],
+      }));
+    }
+    let last = performance.now();
+    function draw(now) {
+      const dt = Math.min(0.05, (now - last) / 1000); last = now;
+      c.clearRect(0, 0, w, h);
+      for (const d of dots) {
+        if (!still) {
+          d.x += d.vx * dt; d.y += d.vy * dt; d.t += d.sp * dt;
+          if (d.y > h) { d.y = 0; d.x = Math.random() * w; }
+          if (d.x < 0) d.x += w; else if (d.x > w) d.x -= w;
+        }
+        c.globalAlpha = 0.25 + 0.75 * (0.5 + 0.5 * Math.sin(d.t));
+        c.fillStyle = d.col;
+        c.beginPath(); c.arc(d.x, d.y, d.r, 0, Math.PI * 2); c.fill();
+      }
+      c.globalAlpha = 1;
+      // once the welcome words fade away, the sparkles rest too
+      if (!hint.classList.contains('gone') && !still) requestAnimationFrame(draw);
+    }
+    size();
+    addEventListener('resize', () => { if (hint.classList.contains('gone')) return; size(); if (still) draw(performance.now()); });
+    requestAnimationFrame(draw);
+  })();
   const heard = document.getElementById('heard');
   const toastEl = document.getElementById('toast');
   const form = document.getElementById('form');
